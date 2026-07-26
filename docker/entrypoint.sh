@@ -65,4 +65,9 @@ chown -R www-data:www-data storage bootstrap/cache config .env "$DATA"
     done
 ) &
 
+# TEMP diagnostics for the AH00534 (two MPMs) crash — runtime view.
+echo "=== runtime mods-enabled ==="; ls /etc/apache2/mods-enabled/ | grep -i mpm || true
+echo "=== runtime LoadModule mpm ==="; grep -RinE "LoadModule +mpm" /etc/apache2/ || true
+echo "=== APACHE env ==="; env | grep -i apache || true
+
 exec apache2-foreground
