@@ -20,8 +20,11 @@ class Headers
             \URL::forceScheme('https'); // Force HTTPS
         }
 
-        // Check if FORCE_ROUTE_HTTPS is set to true
-        if (env('FORCE_ROUTE_HTTPS') == 'true' && (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] == 'off')) {
+        // Check if FORCE_ROUTE_HTTPS is set to true. Use the proxy-aware
+        // secure() check, NOT $_SERVER['HTTPS']: behind a TLS-terminating
+        // proxy (Railway et al.) the raw var is never set, which made
+        // every request redirect to itself forever.
+        if (env('FORCE_ROUTE_HTTPS') == 'true' && !$request->secure()) {
             // Build the redirect host from the app's OWN configured URL,
             // not $_SERVER['HTTP_HOST'] — the Host header is attacker-
             // controlled, so the old code was an open redirect (Host:
