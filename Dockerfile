@@ -10,6 +10,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && a2enmod rewrite headers \
     && rm -rf /var/lib/apt/lists/*
 
+# apt upgrading the apache2 package re-enables Debian's default mpm_event
+# alongside the image's mpm_prefork → "More than one MPM loaded" crash.
+# mod_php requires prefork, so force it to be the only MPM.
+RUN a2dismod -f mpm_event mpm_worker || true; a2enmod mpm_prefork
+
 # LinkStack serves from the app root (shared-hosting layout) and relies on
 # .htaccess for routing AND for denying access to dotfiles / *.sqlite —
 # Apache with AllowOverride All is therefore load-bearing, not cosmetic.
