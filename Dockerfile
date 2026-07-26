@@ -15,13 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # mod_php requires prefork, so force it to be the only MPM.
 RUN a2dismod -f mpm_event mpm_worker || true; a2enmod mpm_prefork
 
-# TEMP diagnostics for the AH00534 crash: show compiled-in modules,
-# enabled module links, and every LoadModule mpm line Apache can see.
-RUN echo "=== apache2 -l (static) ==="; apache2 -l; \
-    echo "=== mods-enabled ==="; ls -la /etc/apache2/mods-enabled/; \
-    echo "=== LoadModule mpm greps ==="; grep -RinE "LoadModule +mpm" /etc/apache2/ || true; \
-    echo "=== configtest ==="; apache2ctl configtest || true
-
 # LinkStack serves from the app root (shared-hosting layout) and relies on
 # .htaccess for routing AND for denying access to dotfiles / *.sqlite —
 # Apache with AllowOverride All is therefore load-bearing, not cosmetic.

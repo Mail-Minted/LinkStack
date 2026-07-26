@@ -65,9 +65,12 @@ chown -R www-data:www-data storage bootstrap/cache config .env "$DATA"
     done
 ) &
 
-# TEMP diagnostics for the AH00534 (two MPMs) crash — runtime view.
-echo "=== runtime mods-enabled ==="; ls /etc/apache2/mods-enabled/ | grep -i mpm || true
-echo "=== runtime LoadModule mpm ==="; grep -RinE "LoadModule +mpm" /etc/apache2/ || true
-echo "=== APACHE env ==="; env | grep -i apache || true
+# Railway's image pipeline resurrects files deleted in image layers
+# (whiteouts get dropped), so the base image's disabled mpm_event links
+# reappear at runtime → "More than one MPM loaded" crash. Deleting them
+# here happens on the live container fs, which sticks. mod_php needs
+# mpm_prefork, so that one stays.
+rm -f /etc/apache2/mods-enabled/mpm_event.load /etc/apache2/mods-enabled/mpm_event.conf \
+      /etc/apache2/mods-enabled/mpm_worker.load /etc/apache2/mods-enabled/mpm_worker.conf
 
 exec apache2-foreground
