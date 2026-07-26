@@ -28,6 +28,6 @@
 	     Pinned to the bottom-right corner so it's always reachable but
 	     out of the way of the bio content. Change the URL if the fork
 	     ever moves; keep it pointing at the running code's source. --}}
-	<a href="https://github.com/RespectedPath/LinkStack" target="_blank" rel="noopener noreferrer"
+	<a href="https://github.com/Mail-Minted/LinkStack" target="_blank" rel="noopener noreferrer"
 	   class="fadein dynamic-contrast"
 	   style="position: fixed; bottom: 8px; right: 12px; z-index: 50; font-size: 0.7rem; opacity: 0.45; color: inherit; text-decoration: none;">Source</a>
