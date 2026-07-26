@@ -246,9 +246,18 @@ Route::get('/studio/linkparamform_part/{typeid}/{linkid}', [LinkTypeViewControll
 });
 }
 
-//Social login route
-Route::get('/social-auth/{provider}/callback', [SocialLoginController::class, 'providerCallback']);
-Route::get('/social-auth/{provider}', [SocialLoginController::class, 'redirectToProvider'])->name('social.redirect');
+// Social login — DISABLED. Accounts are provisioned exclusively by
+// Mail Minted's checkout (see routes/auth.php for the same treatment of
+// register / password reset). SocialLoginController::redirectToProvider
+// would auto-create a brand-new LinkStack user + bio page for anyone who
+// authenticates with a social provider, bypassing the domain purchase —
+// the moment a provider's OAuth credentials are ever set. We dead-end both
+// routes to 404 so enabling a provider (via env or the admin UI) can never
+// silently reopen public signup. Route name 'social.redirect' is kept
+// registered so any view partial calling route('social.redirect') resolves.
+$socialDead = function () { abort(404); };
+Route::get('/social-auth/{provider}/callback', $socialDead);
+Route::get('/social-auth/{provider}', $socialDead)->name('social.redirect');
 
 Route::middleware(['auth', 'blocked', 'impersonate'])->group(function () {
 //Admin route
