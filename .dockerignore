@@ -1,0 +1,12 @@
+.git
+.github
+.claude
+node_modules
+.env
+.env.*
+!.env.example
+database/database.sqlite
+*.sqlite
+backups/*
+Dockerfile
+.dockerignore
