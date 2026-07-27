@@ -20,8 +20,11 @@
  *   DELETE /api/admin/users/{id}
  */
 
+use App\Models\Link;
+use App\Models\SocialAccount;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -126,7 +129,14 @@ Route::prefix('admin')->group(function () {
         if ((int) $id === 1) {
             return response()->json(['error' => 'refusing to delete admin user_id=1'], 409);
         }
-        $user->delete();
+        // links.user_id has a FOREIGN KEY without ON DELETE CASCADE
+        // (social_accounts cascades, but delete it explicitly too so
+        // this doesn't depend on FK enforcement being enabled).
+        DB::transaction(function () use ($user) {
+            Link::where('user_id', $user->id)->delete();
+            SocialAccount::where('user_id', $user->id)->delete();
+            $user->delete();
+        });
         // Remove the customer's uploaded avatar + background so a
         // deprovisioned (cancelled) account leaves no orphaned files.
         purge_user_uploads($id);

@@ -31,5 +31,7 @@
         <server name="TELESCOPE_ENABLED" value="false"/>
         <!-- Deterministic secret for the SSO tests only. -->
         <server name="MAILMINTED_SSO_SHARED_SECRET" value="test-sso-secret-not-production-0123456789abcdef"/>
+        <!-- Deterministic bearer token for the admin API tests only. -->
+        <server name="MAILMINTED_ADMIN_API_TOKEN" value="test-admin-api-token-not-production"/>
     </php>
 </phpunit>
