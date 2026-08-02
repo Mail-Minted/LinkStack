@@ -148,6 +148,39 @@ class AppearanceThemeTest extends TestCase
         $this->assertStringNotContainsString('background-color: transparent', $cssDefault);
     }
 
+    public function test_custom_background_pins_text_color_even_when_untouched(): void
+    {
+        // The stock (no-theme) stylesheet flips all text black/white with
+        // the VIEWER's OS color scheme. A user-chosen background with an
+        // untouched text color must pin the effective text color, or
+        // dark-mode visitors get white text on a light custom background.
+        $defaults = \App\Http\Controllers\AppearanceController::defaults();
+        $css = \App\Services\AppearanceCss::build([
+            'background' => ['type' => 'solid', 'solid' => '#d8d5bb'],
+        ], $defaults);
+
+        $this->assertStringContainsString('background-color: #d8d5bb !important', $css);
+        // body text + headings/description pinned to the manifest color
+        $this->assertStringContainsString('color: #111111 !important', $css);
+        $this->assertStringContainsString('.header-name, .header-description, h1', $css);
+        // stock social icons scheme-flip too — pinned when no icon color mode chosen
+        $this->assertStringContainsString('.social-icon { color: #111111 !important; }', $css);
+
+        // A theme manifest's own text color is what gets pinned.
+        $manifest = array_replace_recursive($defaults, ['colors' => ['text' => '#FFFFFF']]);
+        $cssThemed = \App\Services\AppearanceCss::build([
+            'background' => ['type' => 'solid', 'solid' => '#14181F'],
+        ], $manifest);
+        $this->assertStringContainsString('color: #FFFFFF !important', $cssThemed);
+
+        // An explicit icon color mode keeps ownership of .social-icon.
+        $cssIcons = \App\Services\AppearanceCss::build([
+            'background'   => ['type' => 'solid', 'solid' => '#d8d5bb'],
+            'social_icons' => ['color' => 'brand'],
+        ], $defaults);
+        $this->assertStringNotContainsString('.social-icon { color: #111111', $cssIcons);
+    }
+
     public function test_oversized_upload_is_rejected_with_a_readable_message(): void
     {
         $user = $this->makeUser(['id' => $this->nextId++]);

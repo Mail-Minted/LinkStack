@@ -88,12 +88,22 @@ class AppearanceCss
             $rules[] = ':root { ' . implode(' ', $vars) . ' }';
         }
 
+        // A custom background must pin the text color even when the
+        // user never touched it: the stock (no-theme) stylesheet swaps
+        // all text between black and white with the VIEWER's OS color
+        // scheme, so an untouched text color over a user-chosen
+        // background renders differently per visitor (white on a light
+        // background for dark-mode viewers). Pinning the effective
+        // value is a no-op on generated themes — their CSS already
+        // hardcodes the same manifest color.
+        $pinText = $has('colors.text') || $has('background.type');
+
         // ----- body: background + text color + font ---------------------
         $body = [];
         if ($has('background.type')) {
             $body[] = self::backgroundCss($sparse['background'], $bgFall);
         }
-        if ($has('colors.text')) {
+        if ($pinText) {
             $body[] = "color: {$textColor} !important;";
         }
         if ($font) {
@@ -105,8 +115,15 @@ class AppearanceCss
 
         // Headings + description follow the text color so they read
         // correctly on whatever background was picked.
-        if ($has('colors.text')) {
+        if ($pinText) {
             $rules[] = ".header-name, .header-description, h1, h2, h3, h4, h5, h6, p { color: {$textColor} !important; }";
+        }
+        // Same scheme-flip applies to the stock social-icon color; pin
+        // it only when the user hasn't chosen an icon color mode of
+        // their own (those rules are emitted below and must keep
+        // winning).
+        if ($has('background.type') && !$has('social_icons.color')) {
+            $rules[] = ".social-icon { color: {$textColor} !important; }";
         }
 
         // ----- buttons ---------------------------------------------------
