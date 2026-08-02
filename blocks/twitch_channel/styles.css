@@ -4,7 +4,7 @@
 
 .twitch-block-wrapper {
     width: 100%;
-    max-width: 520px;
+    max-width: var(--block-max-width, 520px);
     margin: 16px auto;
     box-sizing: border-box;
     text-align: center;

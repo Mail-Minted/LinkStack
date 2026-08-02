@@ -4,7 +4,7 @@
 
 .newsletter-wrapper {
     width: 100%;
-    max-width: 520px;
+    max-width: var(--block-max-width, 520px);
     margin: 16px auto;
     padding: 16px;
     box-sizing: border-box;
@@ -73,12 +73,11 @@
     margin-top: -4px;
 }
 
+/* Sizing comes from the theme's shared .button class so the submit
+   matches the page's link buttons; centered within the form column. */
 .newsletter-wrapper .ns-submit {
     margin-top: 10px;
-    padding: 12px 20px;
-    width: 100%;
-    cursor: pointer;
-    min-height: 44px;
+    align-self: center;
 }
 
 .newsletter-wrapper .ns-banner {

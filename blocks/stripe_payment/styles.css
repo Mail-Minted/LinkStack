@@ -2,7 +2,7 @@
 
 .stripe-payment-wrapper {
     width: 100%;
-    max-width: 520px;
+    max-width: var(--block-max-width, 520px);
     margin: 16px auto;
     padding: 16px;
     box-sizing: border-box;
@@ -32,20 +32,15 @@
     display: block;
 }
 
+/* Sizing (width/padding/radius/font) comes from the theme's shared
+   .button class so the CTA matches the page's link buttons; only the
+   two-line label layout is defined here. */
 .stripe-payment-wrapper .sp-submit {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2px;
-    padding: 14px 28px;
-    width: 100%;
-    max-width: 420px;
-    cursor: pointer;
-    min-height: 56px;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: 8px;
 }
 
 .stripe-payment-wrapper .sp-cta {
@@ -99,20 +94,15 @@
     margin-bottom: 8px;
 }
 
+/* Same deal: shared .button sizing, only the label-left / amount-right
+   row layout lives here. */
 .stripe-payment-wrapper .sp-option {
-    display: flex;
+    display: inline-flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 16px;
-    width: 100%;
-    max-width: 420px;
-    min-height: 52px;
     margin: 0 auto;
-    cursor: pointer;
-    font-size: 1rem;
-    border-radius: 8px;
     text-align: left;
     transition: transform 0.08s ease, box-shadow 0.15s ease;
 }

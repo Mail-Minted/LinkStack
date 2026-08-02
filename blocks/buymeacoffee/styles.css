@@ -1,11 +1,10 @@
-/* Buy Me a Coffee block — hand-styled branded button. No external
-   JS, no image-API fetch. Yellow #FFDD00 matches BMC's brand. */
+/* Buy Me a Coffee block — sizing/branding come from the theme's shared
+   .button / .button-coffee classes (brands.css) so this button matches
+   every other link button and follows theme overrides. Only the block
+   wrapper and heading are styled here. */
 
 .bmc-block-wrapper {
     width: 100%;
-    max-width: 520px;
-    margin: 16px auto;
-    box-sizing: border-box;
     text-align: center;
     font-family: inherit;
     color: inherit;
@@ -17,53 +16,7 @@
     font-weight: 600;
 }
 
-.bmc-block-wrapper .bmc-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    width: 100%;
-    max-width: 420px;
-    padding: 14px 28px;
-    background: #FFDD00;
-    color: #0d0c22;
-    border-radius: 10px;
-    text-decoration: none;
-    font-weight: 700;
-    font-size: 1rem;
-    line-height: 1.2;
-    min-height: 52px;
-    transition: transform 0.08s ease, box-shadow 0.15s ease, filter 0.15s ease;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.bmc-block-wrapper .bmc-button:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.bmc-block-wrapper .bmc-button:active {
-    transform: translateY(0);
-    filter: brightness(0.95);
-}
-
-.bmc-block-wrapper .bmc-icon {
-    font-size: 1.2rem;
-    color: #0d0c22;
-}
-
-.bmc-block-wrapper .bmc-label {
-    /* prevent breaking on really long custom labels */
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
 @media (max-width: 600px) {
-    .bmc-block-wrapper {
-        margin: 12px auto;
-    }
     .bmc-block-wrapper .bmc-heading {
         font-size: 1.05rem;
     }

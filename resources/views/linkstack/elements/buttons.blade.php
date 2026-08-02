@@ -25,9 +25,9 @@
             .twitch-block-wrapper,
             .spotify-block-wrapper,
             .bmc-block-wrapper,
-            .stripe-block-wrapper,
-            .cf-wrapper,
-            .ns-wrapper {
+            .stripe-payment-wrapper,
+            .contact-form-wrapper,
+            .newsletter-wrapper {
                 width: 100%;
                 max-width: var(--block-max-width);
                 margin-left: auto;
