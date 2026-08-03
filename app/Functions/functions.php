@@ -93,6 +93,21 @@ function findAvatar($name)
     return "error.error";
 }
 
+function findFavicon($name)
+{
+    // Fresh glob, not the 1-hour directory cache: an upload or removal
+    // must show on the very next request (see the stale-cache note on
+    // UserController::removeAvatarFileIfPresent), and the pattern only
+    // ever targets one user's file so a full listing buys nothing.
+    $matches = glob(base_path('assets/img/favicon-img/') . $name . '_*.*');
+    foreach ($matches ?: [] as $file) {
+        if (is_file($file)) {
+            return basename($file);
+        }
+    }
+    return "error.error";
+}
+
 function findBackground($name)
 {
     $directory = base_path("assets/img/background-img/");
@@ -288,6 +303,7 @@ if (!function_exists('purge_user_uploads')) {
         $dirs = [
             base_path('assets/img'),
             base_path('assets/img/background-img'),
+            base_path('assets/img/favicon-img'),
         ];
         $pattern = '/^' . preg_quote($userId, '/') . '(_\w+)?\.\w+$/i';
         $deleted = 0;

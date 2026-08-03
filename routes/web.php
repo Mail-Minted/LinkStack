@@ -225,6 +225,9 @@ Route::post('/edit-icons', [UserController::class, 'editIcons'])->name('editIcon
 Route::get('/clearIcon/{id}', [UserController::class, 'clearIcon'])->name('clearIcon')->middleware('link-id');
 Route::get('/studio/page/delprofilepicture', [UserController::class, 'delProfilePicture'])->name('delProfilePicture');
 Route::post('/studio/profile-picture', [UserController::class, 'editProfilePicture'])->name('editProfilePicture');
+// Custom browser-tab icon (favicon) for the user's public page — white-label branding.
+Route::post('/studio/favicon', [UserController::class, 'editFavicon'])->name('editFavicon');
+Route::get('/studio/rem-favicon', [UserController::class, 'removeFavicon'])->name('removeFavicon');
 // Self-serve /studio/delete-user removed — see UserController note.
 // Account deletion is admin/deprovision-only.
 Route::post('/auth-as', [AdminController::class, 'authAs'])->name('authAs');

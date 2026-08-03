@@ -1355,6 +1355,68 @@ class UserController extends Controller
         return back()->with('success', 'Profile photo updated.');
     }
 
+    /**
+     * Upload a custom browser-tab icon (favicon) for the user's public
+     * page — white-label: visitors on the customer's domain see the
+     * customer's icon, not ours. Takes effect immediately (account-level
+     * branding, not part of the draft/publish snapshot). Replaces any
+     * existing favicon.
+     */
+    public function editFavicon(Request $request)
+    {
+        $request->validate([
+            'image' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,ico', 'max:2048'],
+        ], [
+            'image.mimes' => __('messages.The image must be') . ' JPEG, JPG, PNG, webP, ICO.',
+            'image.max'   => __('messages.The image size should not exceed 2MB'),
+        ]);
+
+        $userId = Auth::id();
+        $favicon = $request->file('image');
+
+        $dir = base_path('assets/img/favicon-img');
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        $this->removeFaviconFileIfPresent($userId);
+
+        // extension() can come back null for .ico on hosts whose MIME map
+        // lacks it — fall back to the (already mimes-validated) client name.
+        $ext = $favicon->extension() ?: strtolower($favicon->getClientOriginalExtension());
+        $fileName = $userId . '_' . time() . '.' . $ext;
+        $favicon->move($dir, $fileName);
+
+        return back()->with('success', 'Browser tab icon updated.');
+    }
+
+    //Remove the user's custom browser-tab icon; page falls back to the site favicon
+    public function removeFavicon()
+    {
+        $this->removeFaviconFileIfPresent(Auth::id());
+        return back();
+    }
+
+    /**
+     * Unlink the user's current favicon file(s) if they exist on disk.
+     * Iterates actual disk contents, not findFavicon()'s cached listing
+     * (see removeAvatarFileIfPresent for the stale-cache rationale).
+     */
+    private function removeFaviconFileIfPresent($userId): void
+    {
+        $dir = base_path('assets/img/favicon-img');
+        if (!is_dir($dir)) return;
+        $prefix = $userId . '_';
+        foreach (scandir($dir) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..') continue;
+            if (strpos($entry, $prefix) !== 0) continue;
+            $full = $dir . '/' . $entry;
+            if (is_file($full)) {
+                @unlink($full);
+            }
+        }
+    }
+
     //Export user links
     public function exportLinks(request $request)
     {

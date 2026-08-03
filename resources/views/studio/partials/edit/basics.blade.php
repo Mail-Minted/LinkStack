@@ -236,6 +236,25 @@
             </div>
 </form>
 
+{{-- Browser tab icon (favicon) — its own form: file upload with an
+     immediate effect, so it can't ride the auto-saving basics form. --}}
+<div class="form-group col-lg-8">
+  <h5 style="margin-top:50px">Browser tab icon</h5>
+  <p class="text-muted">The small icon (favicon) shown in the browser tab when someone views your page. Square images work best — PNG or ICO, up to 2MB. Changes apply immediately.</p>
+  @php $userFavicon = findFavicon(Auth::id()); @endphp
+  @if($userFavicon !== 'error.error')
+    <div class="mb-3 d-flex align-items-center" style="gap:12px">
+      <img src="{{ asset('assets/img/favicon-img/'.$userFavicon) }}" alt="Current browser tab icon" width="32" height="32" style="border-radius:6px">
+      <a class="btn btn-sm btn-outline-danger" href="{{ route('removeFavicon') }}">Remove</a>
+    </div>
+  @endif
+  <form action="{{ route('editFavicon') }}" method="post" enctype="multipart/form-data" class="d-flex align-items-center" style="gap:12px">
+    @csrf
+    <input type="file" class="form-control" name="image" accept=".png,.ico,.jpg,.jpeg,.webp" required style="max-width:320px">
+    <button type="submit" class="btn btn-primary">Upload</button>
+  </form>
+</div>
+
 <script nonce="{{ csp_nonce() }}">
 (function () {
     // Live preview (Phase 4): patch the shared preview iframe as the user
