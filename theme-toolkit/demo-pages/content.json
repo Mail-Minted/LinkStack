@@ -1,0 +1,36 @@
+{
+  "_readme": "Demo bio-page content, one entry per profession theme. Consumed by seed.php (creates the LinkStack users + links), avatars.js (monogram logo marks) and render.js (screenshots for the Mail Minted marketing pages). Keep the name/tagline plausible for the trade: these are the pages a prospective customer judges the product by.",
+
+  "photographer": {
+    "name": "Aperture Studio",
+    "tagline": "Editorial & wedding photography · Brooklyn",
+    "socials": ["instagram", "pinterest", "tiktok", "facebook"],
+    "links": [
+      { "title": "View the portfolio", "url": "https://example.com/portfolio" },
+      { "title": "Packages & pricing", "url": "https://example.com/pricing" }
+    ],
+    "rich": { "type": "contact_form", "title": "Check a date" }
+  },
+
+  "realtor": {
+    "name": "Marisol Vega",
+    "tagline": "Licensed realtor · Austin, TX",
+    "socials": ["instagram", "facebook", "linkedin", "youtube"],
+    "links": [
+      { "title": "Browse current listings", "url": "https://example.com/listings" },
+      { "title": "What is my home worth?", "url": "https://example.com/valuation" }
+    ],
+    "rich": { "type": "contact_form", "title": "Request a showing" }
+  },
+
+  "plumber": {
+    "name": "Rivera Plumbing",
+    "tagline": "Licensed & insured · 24/7 emergency callouts",
+    "socials": ["facebook", "instagram"],
+    "links": [
+      { "title": "Call (512) 555-0184", "url": "tel:+15125550184" },
+      { "title": "Services & rates", "url": "https://example.com/services" }
+    ],
+    "rich": { "type": "contact_form", "title": "Request a quote" }
+  }
+}

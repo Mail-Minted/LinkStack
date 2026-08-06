@@ -1,0 +1,3 @@
+# Written by seed.php — maps slug -> local user id, so it is specific to
+# whichever database this ran against and must not be shared.
+users.json
