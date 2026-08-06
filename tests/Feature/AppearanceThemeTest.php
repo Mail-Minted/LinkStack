@@ -54,6 +54,22 @@ class AppearanceThemeTest extends TestCase
         return glob(base_path('assets/img/background-img') . '/' . $userId . '_*') ?: [];
     }
 
+    /**
+     * Both naming eras for one user: "{id}_{time}.{ext}" (current) and
+     * the stock "{id}.{ext}". Deliberately NOT "{id}*" — a bare wildcard
+     * also matches OTHER accounts whose id merely starts with these
+     * digits (id 1 matched a real 146700_*.jpg in the shared dir).
+     */
+    private function allBackgroundFiles(int $userId): array
+    {
+        $dir = base_path('assets/img/background-img');
+
+        return array_merge(
+            glob($dir . '/' . $userId . '_*') ?: [],
+            glob($dir . '/' . $userId . '.*') ?: []
+        );
+    }
+
     protected function tearDown(): void
     {
         // Belt and braces: never leave test files in the shared dir.
@@ -91,7 +107,7 @@ class AppearanceThemeTest extends TestCase
 
         $this->actingAs($user)->post('/studio/theme', ['theme' => 'themeB']);
 
-        $this->assertCount(0, glob($dir . '/' . $user->id . '*') ?: [], 'legacy-named background must be deleted on switch');
+        $this->assertCount(0, $this->allBackgroundFiles($user->id), 'legacy-named background must be deleted on switch');
     }
 
     public function test_repicking_the_same_theme_keeps_overrides_and_file(): void
