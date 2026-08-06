@@ -149,10 +149,27 @@ foreach ($specs as $slug => $spec) {
     echo "  ✓ {$slug}  →  /@{$handle}  (user {$userId})\n";
 }
 
-// avatars.js needs the ids: findAvatar() resolves assets/img/<userId>.*
+// avatars.js and render.js need the ids: findAvatar() resolves
+// assets/img/<userId>.*
+//
+// MERGE, never overwrite. Seeding a subset (`php seed.php writer`) must
+// not drop the other 46 entries, or the next unqualified avatars.js /
+// render.js run silently covers only what was last seeded.
+$usersPath = __DIR__ . '/users.json';
+$existing  = file_exists($usersPath)
+    ? (json_decode(file_get_contents($usersPath), true) ?: [])
+    : [];
+
+$merged = array_merge($existing, $map);
+ksort($merged);
+
 file_put_contents(
-    __DIR__ . '/users.json',
-    json_encode($map, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
+    $usersPath,
+    json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
 );
 
-echo "\nWrote users.json (" . count($map) . " demo pages)\n";
+printf(
+    "\nSeeded %d, users.json now holds %d demo page(s)\n",
+    count($map),
+    count($merged)
+);

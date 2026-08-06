@@ -1,36 +1,1151 @@
 {
-  "_readme": "Demo bio-page content, one entry per profession theme. Consumed by seed.php (creates the LinkStack users + links), avatars.js (monogram logo marks) and render.js (screenshots for the Mail Minted marketing pages). Keep the name/tagline plausible for the trade: these are the pages a prospective customer judges the product by.",
-
-  "photographer": {
-    "name": "Aperture Studio",
-    "tagline": "Editorial & wedding photography · Brooklyn",
-    "socials": ["instagram", "pinterest", "tiktok", "facebook"],
-    "links": [
-      { "title": "View the portfolio", "url": "https://example.com/portfolio" },
-      { "title": "Packages & pricing", "url": "https://example.com/pricing" }
-    ],
-    "rich": { "type": "contact_form", "title": "Check a date" }
-  },
-
-  "realtor": {
-    "name": "Marisol Vega",
-    "tagline": "Licensed realtor · Austin, TX",
-    "socials": ["instagram", "facebook", "linkedin", "youtube"],
-    "links": [
-      { "title": "Browse current listings", "url": "https://example.com/listings" },
-      { "title": "What is my home worth?", "url": "https://example.com/valuation" }
-    ],
-    "rich": { "type": "contact_form", "title": "Request a showing" }
-  },
-
+  "_readme": "Demo bio-page content, one entry per profession theme. Consumed by seed.php (LinkStack users + links), avatars.js (monogram logo marks) and render.js (screenshots for the Mail Minted marketing pages). Keep the name/tagline plausible for the trade: a prospect judges the whole product by these pages. The rich block is the point — it is what the marketing copy means by 'book, pay and subscribe'. Social handles are only ever example.com-style placeholders; never a real account. Prices are illustrative. Phone numbers use the reserved 555-01xx range.",
   "plumber": {
     "name": "Rivera Plumbing",
     "tagline": "Licensed & insured · 24/7 emergency callouts",
-    "socials": ["facebook", "instagram"],
-    "links": [
-      { "title": "Call (512) 555-0184", "url": "tel:+15125550184" },
-      { "title": "Services & rates", "url": "https://example.com/services" }
+    "socials": [
+      "facebook",
+      "instagram"
     ],
-    "rich": { "type": "contact_form", "title": "Request a quote" }
+    "links": [
+      {
+        "title": "Call (512) 555-0184",
+        "url": "tel:+15125550184"
+      },
+      {
+        "title": "Services & rates",
+        "url": "https://example.com/services"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Request a quote"
+    }
+  },
+  "electrician": {
+    "name": "Bright Path Electric",
+    "tagline": "Residential & commercial · Fully certified",
+    "socials": [
+      "facebook",
+      "instagram"
+    ],
+    "links": [
+      {
+        "title": "Book an inspection",
+        "url": "https://example.com/booking"
+      },
+      {
+        "title": "Emergency callout",
+        "url": "tel:+15125550117"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Get a free estimate"
+    }
+  },
+  "mechanic": {
+    "name": "Kestrel Auto Works",
+    "tagline": "Independent garage · Diagnostics & repair",
+    "socials": [
+      "facebook",
+      "instagram",
+      "youtube"
+    ],
+    "links": [
+      {
+        "title": "Book a service",
+        "url": "https://example.com/book"
+      },
+      {
+        "title": "What we work on",
+        "url": "https://example.com/makes"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Describe the problem"
+    }
+  },
+  "hvac": {
+    "name": "Northline Heating & Air",
+    "tagline": "Install, service & repair · Same-week appointments",
+    "socials": [
+      "facebook",
+      "instagram"
+    ],
+    "links": [
+      {
+        "title": "Book a tune-up",
+        "url": "https://example.com/tuneup"
+      },
+      {
+        "title": "Financing options",
+        "url": "https://example.com/financing"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Request a quote"
+    }
+  },
+  "contractor": {
+    "name": "Halloran Build Co.",
+    "tagline": "Renovations & additions · Licensed general contractor",
+    "socials": [
+      "instagram",
+      "facebook",
+      "pinterest"
+    ],
+    "links": [
+      {
+        "title": "Recent projects",
+        "url": "https://example.com/projects"
+      },
+      {
+        "title": "How we work",
+        "url": "https://example.com/process"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Start a project"
+    }
+  },
+  "roofer": {
+    "name": "Summit Roofing",
+    "tagline": "Repairs, replacement & storm damage · Free inspections",
+    "socials": [
+      "facebook",
+      "instagram"
+    ],
+    "links": [
+      {
+        "title": "Free roof inspection",
+        "url": "https://example.com/inspection"
+      },
+      {
+        "title": "Insurance claims help",
+        "url": "https://example.com/claims"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Request an inspection"
+    }
+  },
+  "landscaper": {
+    "name": "Fern & Stone",
+    "tagline": "Garden design & maintenance · Seasonal contracts",
+    "socials": [
+      "instagram",
+      "pinterest",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "See our gardens",
+        "url": "https://example.com/gallery"
+      },
+      {
+        "title": "Maintenance plans",
+        "url": "https://example.com/plans"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Book a site visit"
+    }
+  },
+  "handyman": {
+    "name": "Odd Jobs & Co.",
+    "tagline": "Small repairs done properly · No job too small",
+    "socials": [
+      "facebook",
+      "instagram"
+    ],
+    "links": [
+      {
+        "title": "What I can fix",
+        "url": "https://example.com/services"
+      },
+      {
+        "title": "Call (512) 555-0143",
+        "url": "tel:+15125550143"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Tell me what needs doing"
+    }
+  },
+  "mover": {
+    "name": "Wayfare Moving",
+    "tagline": "Local & long distance · Packing included",
+    "socials": [
+      "facebook",
+      "instagram"
+    ],
+    "links": [
+      {
+        "title": "Get a moving quote",
+        "url": "https://example.com/quote"
+      },
+      {
+        "title": "Packing services",
+        "url": "https://example.com/packing"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Request a quote"
+    }
+  },
+  "hairstylist": {
+    "name": "Shear Studio",
+    "tagline": "Cut, colour & styling · By appointment",
+    "socials": [
+      "instagram",
+      "tiktok",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Book an appointment",
+        "url": "https://example.com/book"
+      },
+      {
+        "title": "Price list",
+        "url": "https://example.com/prices"
+      }
+    ],
+    "rich": {
+      "type": "stripe_payment",
+      "title": "Reserve your chair",
+      "params": {
+        "mode": "fixed_price",
+        "currency": "usd",
+        "options": [
+          {
+            "label": "Booking deposit",
+            "amount_cents": 2500
+          }
+        ]
+      }
+    }
+  },
+  "esthetician": {
+    "name": "Glow Room",
+    "tagline": "Facials & skin treatments · Consultations welcome",
+    "socials": [
+      "instagram",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Book a facial",
+        "url": "https://example.com/book"
+      },
+      {
+        "title": "Treatment menu",
+        "url": "https://example.com/menu"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Ask about your skin"
+    }
+  },
+  "nail-tech": {
+    "name": "Polished",
+    "tagline": "Gel, acrylic & nail art · Studio in Midtown",
+    "socials": [
+      "instagram",
+      "tiktok",
+      "pinterest"
+    ],
+    "links": [
+      {
+        "title": "Book your set",
+        "url": "https://example.com/book"
+      },
+      {
+        "title": "Design gallery",
+        "url": "https://example.com/gallery"
+      }
+    ],
+    "rich": {
+      "type": "stripe_payment",
+      "title": "Secure your slot",
+      "params": {
+        "mode": "fixed_price",
+        "currency": "usd",
+        "options": [
+          {
+            "label": "Booking deposit",
+            "amount_cents": 2000
+          }
+        ]
+      }
+    }
+  },
+  "makeup-artist": {
+    "name": "Vera Lune",
+    "tagline": "Bridal & editorial makeup · Travels to you",
+    "socials": [
+      "instagram",
+      "tiktok",
+      "pinterest"
+    ],
+    "links": [
+      {
+        "title": "Bridal packages",
+        "url": "https://example.com/bridal"
+      },
+      {
+        "title": "Portfolio",
+        "url": "https://example.com/portfolio"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Enquire about your date"
+    }
+  },
+  "lash-tech": {
+    "name": "Flutter Lash Bar",
+    "tagline": "Classic, hybrid & volume sets · Fills welcome",
+    "socials": [
+      "instagram",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Book a set",
+        "url": "https://example.com/book"
+      },
+      {
+        "title": "Aftercare guide",
+        "url": "https://example.com/aftercare"
+      }
+    ],
+    "rich": {
+      "type": "stripe_payment",
+      "title": "Book with a deposit",
+      "params": {
+        "mode": "fixed_price",
+        "currency": "usd",
+        "options": [
+          {
+            "label": "Booking deposit",
+            "amount_cents": 1500
+          }
+        ]
+      }
+    }
+  },
+  "barber": {
+    "name": "The Cut Room",
+    "tagline": "Traditional barbering · Walk-ins before noon",
+    "socials": [
+      "instagram",
+      "facebook",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Book a chair",
+        "url": "https://example.com/book"
+      },
+      {
+        "title": "Cuts & prices",
+        "url": "https://example.com/prices"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Ask us anything"
+    }
+  },
+  "yoga-instructor": {
+    "name": "Lotus Flow",
+    "tagline": "Vinyasa & restorative · Studio and online",
+    "socials": [
+      "instagram",
+      "youtube",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Class timetable",
+        "url": "https://example.com/timetable"
+      },
+      {
+        "title": "New student offer",
+        "url": "https://example.com/intro"
+      }
+    ],
+    "rich": {
+      "type": "stripe_payment",
+      "title": "Buy a class pass",
+      "params": {
+        "mode": "fixed_price",
+        "currency": "usd",
+        "options": [
+          {
+            "label": "Drop-in class",
+            "amount_cents": 1800
+          },
+          {
+            "label": "Five-class pass",
+            "amount_cents": 8000
+          }
+        ]
+      }
+    }
+  },
+  "massage-therapist": {
+    "name": "Stillpoint Massage",
+    "tagline": "Deep tissue & sports massage · Licensed therapist",
+    "socials": [
+      "instagram",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Book a session",
+        "url": "https://example.com/book"
+      },
+      {
+        "title": "Treatments & rates",
+        "url": "https://example.com/rates"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Request an appointment"
+    }
+  },
+  "spa": {
+    "name": "Stillwater Spa",
+    "tagline": "Day packages, facials & thermal suite",
+    "socials": [
+      "instagram",
+      "facebook",
+      "pinterest"
+    ],
+    "links": [
+      {
+        "title": "Day packages",
+        "url": "https://example.com/packages"
+      },
+      {
+        "title": "Gift vouchers",
+        "url": "https://example.com/vouchers"
+      }
+    ],
+    "rich": {
+      "type": "stripe_payment",
+      "title": "Buy a gift voucher",
+      "params": {
+        "mode": "fixed_price",
+        "currency": "usd",
+        "options": [
+          {
+            "label": "Voucher · $75",
+            "amount_cents": 7500
+          },
+          {
+            "label": "Voucher · $150",
+            "amount_cents": 15000
+          }
+        ]
+      }
+    }
+  },
+  "personal-trainer": {
+    "name": "Drive Strength",
+    "tagline": "1:1 coaching & programming · In person or remote",
+    "socials": [
+      "instagram",
+      "youtube",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Coaching options",
+        "url": "https://example.com/coaching"
+      },
+      {
+        "title": "Client results",
+        "url": "https://example.com/results"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Book a free consult"
+    }
+  },
+  "bakery": {
+    "name": "The Corner Bakery",
+    "tagline": "Sourdough, pastry & celebration cakes",
+    "socials": [
+      "instagram",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Today's bakes",
+        "url": "https://example.com/menu"
+      },
+      {
+        "title": "Order a cake",
+        "url": "https://example.com/cakes"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Custom cake enquiry"
+    }
+  },
+  "restaurant": {
+    "name": "The Oak Table",
+    "tagline": "Seasonal plates & natural wine · Dinner Tue–Sat",
+    "socials": [
+      "instagram",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Book a table",
+        "url": "https://example.com/reservations"
+      },
+      {
+        "title": "See the menu",
+        "url": "https://example.com/menu"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Private dining enquiry"
+    }
+  },
+  "coffee-shop": {
+    "name": "Daybreak Coffee",
+    "tagline": "Speciality roasts · Open from 7am",
+    "socials": [
+      "instagram",
+      "tiktok",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Our beans",
+        "url": "https://example.com/beans"
+      },
+      {
+        "title": "Find us",
+        "url": "https://example.com/location"
+      }
+    ],
+    "rich": {
+      "type": "newsletter_signup",
+      "title": "New roasts, first"
+    }
+  },
+  "food-truck": {
+    "name": "Smoke & Ember",
+    "tagline": "Wood-fired tacos · Follow us for today's stop",
+    "socials": [
+      "instagram",
+      "tiktok",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Where we are today",
+        "url": "https://example.com/location"
+      },
+      {
+        "title": "Book us for an event",
+        "url": "https://example.com/events"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Event booking enquiry"
+    }
+  },
+  "caterer": {
+    "name": "Larder & Co.",
+    "tagline": "Weddings, corporate & private events",
+    "socials": [
+      "instagram",
+      "facebook",
+      "pinterest"
+    ],
+    "links": [
+      {
+        "title": "Sample menus",
+        "url": "https://example.com/menus"
+      },
+      {
+        "title": "How pricing works",
+        "url": "https://example.com/pricing"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Tell us about your event"
+    }
+  },
+  "pizzeria": {
+    "name": "Forno Nine",
+    "tagline": "Neapolitan pizza · 60-second bake",
+    "socials": [
+      "instagram",
+      "facebook",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Order collection",
+        "url": "https://example.com/order"
+      },
+      {
+        "title": "Menu",
+        "url": "https://example.com/menu"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Large order enquiry"
+    }
+  },
+  "brewery": {
+    "name": "Kiln & Craft",
+    "tagline": "Small-batch beer · Taproom open Thu–Sun",
+    "socials": [
+      "instagram",
+      "facebook",
+      "youtube"
+    ],
+    "links": [
+      {
+        "title": "What's on tap",
+        "url": "https://example.com/taplist"
+      },
+      {
+        "title": "Book a tour",
+        "url": "https://example.com/tours"
+      }
+    ],
+    "rich": {
+      "type": "newsletter_signup",
+      "title": "New releases & tap takeovers"
+    }
+  },
+  "bartender": {
+    "name": "Ash & Rye",
+    "tagline": "Private bartending & cocktail catering",
+    "socials": [
+      "instagram",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Packages",
+        "url": "https://example.com/packages"
+      },
+      {
+        "title": "Signature menu",
+        "url": "https://example.com/cocktails"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Enquire about your event"
+    }
+  },
+  "tattoo-artist": {
+    "name": "Nyx Tattoo",
+    "tagline": "Blackwork & fine line · Books open monthly",
+    "socials": [
+      "instagram",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Flash available now",
+        "url": "https://example.com/flash"
+      },
+      {
+        "title": "Studio policies",
+        "url": "https://example.com/policies"
+      }
+    ],
+    "rich": {
+      "type": "stripe_payment",
+      "title": "Secure your booking",
+      "params": {
+        "mode": "fixed_price",
+        "currency": "usd",
+        "options": [
+          {
+            "label": "Session deposit",
+            "amount_cents": 5000
+          }
+        ]
+      }
+    }
+  },
+  "photographer": {
+    "name": "Aperture Studio",
+    "tagline": "Editorial & wedding photography · Brooklyn",
+    "socials": [
+      "instagram",
+      "pinterest",
+      "tiktok",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "View the portfolio",
+        "url": "https://example.com/portfolio"
+      },
+      {
+        "title": "Packages & pricing",
+        "url": "https://example.com/pricing"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Check a date"
+    }
+  },
+  "musician": {
+    "name": "Echo & Oak",
+    "tagline": "Live sets & session work · Booking 2026 dates",
+    "socials": [
+      "instagram",
+      "youtube",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Listen",
+        "url": "https://example.com/listen"
+      },
+      {
+        "title": "Tour dates",
+        "url": "https://example.com/tour"
+      }
+    ],
+    "rich": {
+      "type": "newsletter_signup",
+      "title": "Tour dates & new music"
+    }
+  },
+  "dj": {
+    "name": "Nocturne",
+    "tagline": "Weddings, clubs & private events",
+    "socials": [
+      "instagram",
+      "youtube",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Recent mixes",
+        "url": "https://example.com/mixes"
+      },
+      {
+        "title": "Event packages",
+        "url": "https://example.com/packages"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Check my availability"
+    }
+  },
+  "artist": {
+    "name": "Juno Hale",
+    "tagline": "Original paintings & commissions",
+    "socials": [
+      "instagram",
+      "pinterest",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Available work",
+        "url": "https://example.com/shop"
+      },
+      {
+        "title": "Commission info",
+        "url": "https://example.com/commissions"
+      }
+    ],
+    "rich": {
+      "type": "newsletter_signup",
+      "title": "First look at new work"
+    }
+  },
+  "designer": {
+    "name": "Studio Meridian",
+    "tagline": "Brand & web design for small teams",
+    "socials": [
+      "instagram",
+      "linkedin",
+      "pinterest"
+    ],
+    "links": [
+      {
+        "title": "Selected work",
+        "url": "https://example.com/work"
+      },
+      {
+        "title": "Services & rates",
+        "url": "https://example.com/services"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Start a project"
+    }
+  },
+  "writer": {
+    "name": "Imogen Frost",
+    "tagline": "Essays, features & ghostwriting",
+    "socials": [
+      "linkedin",
+      "instagram",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Published work",
+        "url": "https://example.com/clips"
+      },
+      {
+        "title": "Work with me",
+        "url": "https://example.com/hire"
+      }
+    ],
+    "rich": {
+      "type": "newsletter_signup",
+      "title": "Essays, every other Sunday"
+    }
+  },
+  "lawyer": {
+    "name": "Marsh & Co.",
+    "tagline": "Family and employment law · Free first call",
+    "socials": [
+      "linkedin",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Practice areas",
+        "url": "https://example.com/practice"
+      },
+      {
+        "title": "Fees explained",
+        "url": "https://example.com/fees"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Request a callback"
+    }
+  },
+  "realtor": {
+    "name": "Marisol Vega",
+    "tagline": "Licensed realtor · Austin, TX",
+    "socials": [
+      "instagram",
+      "facebook",
+      "linkedin",
+      "youtube"
+    ],
+    "links": [
+      {
+        "title": "Browse current listings",
+        "url": "https://example.com/listings"
+      },
+      {
+        "title": "What is my home worth?",
+        "url": "https://example.com/valuation"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Request a showing"
+    }
+  },
+  "accountant": {
+    "name": "Ledger & Lane",
+    "tagline": "Bookkeeping and tax for small business",
+    "socials": [
+      "linkedin",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Services",
+        "url": "https://example.com/services"
+      },
+      {
+        "title": "Pricing",
+        "url": "https://example.com/pricing"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Book a free consult"
+    }
+  },
+  "consultant": {
+    "name": "Northcott Advisory",
+    "tagline": "Operations & growth consulting",
+    "socials": [
+      "linkedin",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "How I help",
+        "url": "https://example.com/services"
+      },
+      {
+        "title": "Case studies",
+        "url": "https://example.com/cases"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Book an intro call"
+    }
+  },
+  "financial-advisor": {
+    "name": "Cairn Wealth",
+    "tagline": "Independent financial planning",
+    "socials": [
+      "linkedin",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Our approach",
+        "url": "https://example.com/approach"
+      },
+      {
+        "title": "Fee structure",
+        "url": "https://example.com/fees"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Arrange a review"
+    }
+  },
+  "therapist": {
+    "name": "Quiet Harbour Therapy",
+    "tagline": "CBT & talking therapy · In person and online",
+    "socials": [
+      "instagram",
+      "linkedin"
+    ],
+    "links": [
+      {
+        "title": "How therapy works",
+        "url": "https://example.com/about"
+      },
+      {
+        "title": "Fees & availability",
+        "url": "https://example.com/fees"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Enquire confidentially"
+    }
+  },
+  "architect": {
+    "name": "Vale Architecture",
+    "tagline": "Residential architecture & extensions",
+    "socials": [
+      "instagram",
+      "linkedin",
+      "pinterest"
+    ],
+    "links": [
+      {
+        "title": "Selected projects",
+        "url": "https://example.com/projects"
+      },
+      {
+        "title": "The design process",
+        "url": "https://example.com/process"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Discuss your project"
+    }
+  },
+  "fitness-influencer": {
+    "name": "Train With Remi",
+    "tagline": "Programs, form checks & weekly workouts",
+    "socials": [
+      "instagram",
+      "youtube",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Free workout plan",
+        "url": "https://example.com/plan"
+      },
+      {
+        "title": "Coaching waitlist",
+        "url": "https://example.com/waitlist"
+      }
+    ],
+    "rich": {
+      "type": "newsletter_signup",
+      "title": "Weekly training emails"
+    }
+  },
+  "travel-creator": {
+    "name": "Far & Away",
+    "tagline": "Slow travel guides & itineraries",
+    "socials": [
+      "instagram",
+      "youtube",
+      "tiktok",
+      "pinterest"
+    ],
+    "links": [
+      {
+        "title": "City guides",
+        "url": "https://example.com/guides"
+      },
+      {
+        "title": "Gear I actually use",
+        "url": "https://example.com/gear"
+      }
+    ],
+    "rich": {
+      "type": "newsletter_signup",
+      "title": "New guides, monthly"
+    }
+  },
+  "lifestyle-blogger": {
+    "name": "Slow Mornings",
+    "tagline": "Home, food & small pleasures",
+    "socials": [
+      "instagram",
+      "pinterest",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Latest posts",
+        "url": "https://example.com/blog"
+      },
+      {
+        "title": "Shop my favourites",
+        "url": "https://example.com/shop"
+      }
+    ],
+    "rich": {
+      "type": "newsletter_signup",
+      "title": "Sunday letter"
+    }
+  },
+  "florist": {
+    "name": "Wildbloom",
+    "tagline": "Seasonal arrangements & event flowers",
+    "socials": [
+      "instagram",
+      "pinterest",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Weekly bouquets",
+        "url": "https://example.com/bouquets"
+      },
+      {
+        "title": "Wedding flowers",
+        "url": "https://example.com/weddings"
+      }
+    ],
+    "rich": {
+      "type": "stripe_payment",
+      "title": "Send flowers today",
+      "params": {
+        "mode": "fixed_price",
+        "currency": "usd",
+        "options": [
+          {
+            "label": "Seasonal bouquet",
+            "amount_cents": 4500
+          },
+          {
+            "label": "Deluxe bouquet",
+            "amount_cents": 7500
+          }
+        ]
+      }
+    }
+  },
+  "wedding-planner": {
+    "name": "Evergreen Events",
+    "tagline": "Full planning & on-the-day coordination",
+    "socials": [
+      "instagram",
+      "pinterest",
+      "facebook"
+    ],
+    "links": [
+      {
+        "title": "Planning packages",
+        "url": "https://example.com/packages"
+      },
+      {
+        "title": "Real weddings",
+        "url": "https://example.com/gallery"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Tell us about your day"
+    }
+  },
+  "pet-groomer": {
+    "name": "Scruff & Tumble",
+    "tagline": "Dog grooming · Small salon, calm handling",
+    "socials": [
+      "instagram",
+      "facebook",
+      "tiktok"
+    ],
+    "links": [
+      {
+        "title": "Book a groom",
+        "url": "https://example.com/book"
+      },
+      {
+        "title": "Breeds & pricing",
+        "url": "https://example.com/pricing"
+      }
+    ],
+    "rich": {
+      "type": "contact_form",
+      "title": "Ask about your dog"
+    }
   }
 }
