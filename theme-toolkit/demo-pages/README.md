@@ -56,6 +56,26 @@ Demo users get a generated **monogram** rather than a photo or an icon:
 The monogram takes each theme's own accent, button background and
 heading font, so it looks designed for that theme.
 
+## Social handles must match the studio's own list
+
+The `socials` values in `content.json` are written straight into
+`links.title`, and `linkstack/elements/icons.blade.php` renders them as
+`fa-brands fa-<title>`. So a title that Font Awesome doesn't know, or
+knows by a different name, silently draws the wrong glyph.
+
+Take the values from `$brands` in
+`resources/views/studio/partials/edit/social.blade.php` — the list the
+customer actually picks from — rather than from the `buttons` table or
+from memory.
+
+The one that bites: **`x-twitter`, not `twitter`.** Font Awesome still
+ships `.fa-twitter` as the legacy bird (`\f099`); the X mark is a
+separate glyph, `.fa-x-twitter` (`\e61b`). The studio has only ever
+offered `x-twitter` (added 2026-06-29, a month before launch), so no
+real customer row says `twitter` — but hand-written demo content
+bypasses the picker and can, which is exactly how an earlier pass here
+produced bird icons and misdiagnosed them as a product defect.
+
 ## Gotchas
 
 - `links.type` must be **NULL** for social icon rows, never `''` — the
