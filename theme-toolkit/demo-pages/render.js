@@ -90,10 +90,17 @@ const VIEWPORT = { width: 390, height: 844 };
     const out = path.join(OUT_DIR, `${slug}.webp`);
     await page.screenshot({ path: tmp });
     execFileSync('cwebp', ['-quiet', '-q', '82', tmp, '-o', out]);
+
+    // A second, small copy for the grids. The full render is ~45 KB and
+    // 780px wide; the theme index shows all 47 at ~180px, so serving the
+    // full set there would be 2.2 MB to draw thumbnails. This is ~13 KB.
+    const thumb = path.join(OUT_DIR, `${slug}-thumb.webp`);
+    execFileSync('cwebp', ['-quiet', '-q', '80', '-resize', '260', '0', tmp, '-o', thumb]);
     fs.unlinkSync(tmp);
 
     const kb = Math.round(fs.statSync(out).size / 1024);
-    console.log(`  ✓ ${slug}  ${kb} KB  ${title}`);
+    const tkb = Math.round(fs.statSync(thumb).size / 1024);
+    console.log(`  ✓ ${slug}  ${kb} KB + ${tkb} KB thumb  ${title}`);
   }
 
   await browser.close();
