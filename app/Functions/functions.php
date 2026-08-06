@@ -16,13 +16,17 @@ if (!function_exists('preloadDirectoryFiles')) {
     {
         static $memoryCache = [];
 
-        // Return from memory if already loaded
-        if (isset($memoryCache[$directory])) {
-            return $memoryCache[$directory];
-        }
+        $listing = (is_dir($directory) ? scandir($directory) : false) ?: [];
+        $fingerprint = md5(json_encode($listing));
 
-        $files = [];
-        $fingerprint = md5(json_encode(scandir($directory)));
+        // Return from memory only while the directory is unchanged. The
+        // fingerprint is what makes every tier honest: without it here,
+        // one read of a directory froze that listing for the rest of the
+        // process, so an upload or delete later in the same request was
+        // invisible to findAvatar()/findBackground().
+        if (isset($memoryCache[$directory]) && ($memoryCache[$directory]['fingerprint'] ?? null) === $fingerprint) {
+            return $memoryCache[$directory]['files'];
+        }
 
         // Try Redis first
         if (class_exists('Redis')) {
@@ -31,7 +35,7 @@ if (!function_exists('preloadDirectoryFiles')) {
                 if ($cached) {
                     $cached = json_decode($cached, true);
                     if (isset($cached['fingerprint']) && $cached['fingerprint'] === $fingerprint) {
-                        $memoryCache[$directory] = $cached['files'];
+                        $memoryCache[$directory] = $cached;
                         return $cached['files'];
                     }
                 }
@@ -40,8 +44,9 @@ if (!function_exists('preloadDirectoryFiles')) {
             }
         }
 
-        // Scan directory and cache
-        $files = scandir($directory);
+        // The listing read for the fingerprint IS the answer — no second
+        // scandir, and no window where the two could disagree.
+        $files = $listing;
 
         // Cache in Redis if possible
         $data = [
@@ -59,7 +64,7 @@ if (!function_exists('preloadDirectoryFiles')) {
             Cache::put($cacheKey, $data, $ttl);
         }
 
-        $memoryCache[$directory] = $files;
+        $memoryCache[$directory] = $data;
 
         return $files;
     }

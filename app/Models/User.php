@@ -67,6 +67,15 @@ class User extends Authenticatable implements MustVerifyEmail
         parent::boot();
 
         static::creating(function ($user) {
+            // An id the caller set explicitly wins. Overwriting it here
+            // silently handed back a DIFFERENT id than was asked for,
+            // which is how the appearance tests ended up operating on
+            // id 1 (and globbing "1*") in the shared assets dir while
+            // believing they had a private 990100+ id.
+            if (!is_null($user->id)) {
+                return;
+            }
+
             if (config('linkstack.disable_random_user_ids') != 'true') {
                 if (is_null(User::first())) {
                     $user->id = 1;

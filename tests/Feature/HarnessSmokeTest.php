@@ -25,6 +25,20 @@ class HarnessSmokeTest extends TestCase
         $this->get('/')->assertSuccessful();
     }
 
+    public function test_make_user_honours_an_explicit_id(): void
+    {
+        // User::creating assigns a random 6-digit id — but it used to do
+        // so even when the caller had already chosen one, so
+        // makeUser(['id' => 990100]) silently produced id 1. Tests that
+        // touch the SHARED assets/img dirs pick high ids precisely to
+        // stay clear of real accounts' files; that guarantee is only
+        // worth anything if the id survives the insert.
+        $user = $this->makeUser(['id' => 990001]);
+
+        $this->assertSame(990001, $user->id);
+        $this->assertDatabaseHas('users', ['id' => 990001]);
+    }
+
     public function test_authenticated_studio_loads(): void
     {
         $user = $this->makeUser();
