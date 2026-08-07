@@ -1238,15 +1238,19 @@ class UserController extends Controller
     //Save user (name, email, password)
     public function editProfile(request $request)
     {
+        $userId = Auth::user()->id;
+
         $request->validate([
-            'name' => 'sometimes|required|unique:users',
-            'email' => 'sometimes|required|email|unique:users',
+            // Rendered into raw HTML in places Blade isn't escaping for us
+            // (the impersonation bar), and the column is 255 wide. Keep it
+            // plain text and bounded. Rule::unique ignores the caller's own
+            // row so saving an unchanged name doesn't fail validation.
+            'name' => ['sometimes', 'required', 'string', 'max:255', Rule::unique('users')->ignore($userId)],
+            'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($userId)],
             'password' => 'sometimes|min:8',
         ]);
 
-        $userId = Auth::user()->id;
-
-        $name = $request->name;
+        $name = trim(strip_tags((string) $request->name));
         $email = $request->email;
         $password = Hash::make($request->password);
 

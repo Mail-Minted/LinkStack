@@ -45,6 +45,16 @@ class Impersonate
                 $storageToken = $request->session()->get('display_auth_nav');
 
                 if ($storageToken === $rememberToken) {
+                    // Every value below is interpolated into a raw HTML
+                    // heredoc, so it has to be escaped here -- there is no
+                    // Blade doing it for us. $impersonateUserName is the
+                    // impersonated account's own display name, which any
+                    // customer can set to arbitrary text on /studio/profile:
+                    // unescaped, it was stored XSS that fired in an admin's
+                    // browser the moment they impersonated that account.
+                    $impersonateUserName = e($impersonateUserName);
+                    $nonce = csp_nonce();
+
                     if (file_exists(base_path(findAvatar($impersonateUserId)))) {
                         $avatarUrl = url(findAvatar($impersonateUserId));
                     } elseif (file_exists(base_path("assets/linkstack/images/") . findFile('avatar'))) {
@@ -116,7 +126,7 @@ class Impersonate
     <span>
       <a href="$dashboardUrl"><img alt="avatar" class="iimg irounded" src="$avatarUrl">$impersonateUserName</a>
     </span>
-    <a style="cursor:pointer" onclick="document.getElementById('submitForm').submit(); return false;">
+    <a id="ibarExit" style="cursor:pointer">
       <svg xmlns="http://www.w3.org/2000/svg" class="bi bi-x" viewBox="0 0 16 16">
         <path
           d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
@@ -132,10 +142,14 @@ class Impersonate
   <input type="hidden" name="id" value="$originalUserId">
 </form>
 
-<script>
-  function submitForm() {
+<script nonce="$nonce">
+  // Nonced listener rather than an inline onclick: script-src is enforced
+  // (no unsafe-inline) on bio pages and the studio/dashboard/admin area,
+  // so the old inline handler was silently blocked there -- the exit "X"
+  // did nothing on exactly the pages an admin impersonates from.
+  document.getElementById('ibarExit').addEventListener('click', function () {
     document.getElementById('submitForm').submit();
-  }
+  });
 </script>
 EOD;
                 } else {
@@ -143,8 +157,33 @@ EOD;
                 }
 
                 $response = $next($request);
+
+                // Only splice the bar into actual HTML documents. This used
+                // to run against every response body, including JSON and
+                // file downloads -- harmless only because they rarely
+                // contain a <body> tag.
+                $contentType = (string) $response->headers->get('Content-Type', '');
+                if ($customHtml === '' || !str_contains(strtolower($contentType), 'text/html')) {
+                    return $response;
+                }
+
                 $content = $response->getContent();
-                $modifiedContent = preg_replace('/<body([^>]*)>/', "<body$1>{$customHtml}", $content);
+                if (!is_string($content)) {
+                    return $response;
+                }
+
+                // preg_replace_callback, not preg_replace: in a replacement
+                // string "$1" and "\1" are backreferences, so a display name
+                // containing either would corrupt the surrounding markup
+                // even after escaping.
+                $modifiedContent = preg_replace_callback(
+                    '/<body([^>]*)>/',
+                    function ($matches) use ($customHtml) {
+                        return '<body' . $matches[1] . '>' . $customHtml;
+                    },
+                    $content,
+                    1
+                );
                 $response->setContent($modifiedContent);
 
                 return $response;
