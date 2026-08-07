@@ -953,59 +953,50 @@ class AdminController extends Controller
   //Removes impersonation if authenticated
   public function authAs(Request $request)
   {
-    $userID = $request->id;
-    $token = $request->token;
+    // Who to return to comes from the SESSION, never from the request. The
+    // old version took an id and a token out of the request body and, on a
+    // match, called Auth::loginUsingId() on that id -- an arbitrary-identity
+    // login whose only guard was a hand-rolled comparison in this method.
+    $impersonatorId = $request->session()->get("impersonator_id");
+    $impersonator = $impersonatorId ? User::find($impersonatorId) : null;
 
-    $user = User::find($userID);
-
-    if (!$user) {
+    if (!$impersonator || $impersonator->role !== "admin") {
+      // Nothing to return to. Drop the claim and the session with it.
+      $request->session()->forget("impersonator_id");
       Auth::logout();
+      $request->session()->invalidate();
+      $request->session()->regenerateToken();
       return redirect("/login");
     }
 
-    $userRememberToken = $user->remember_token;
-    $sessionToken = $request->session()->get("display_auth_nav");
+    Auth::login($impersonator);
+    $request->session()->regenerate();
+    $request->session()->forget("impersonator_id");
 
-    if (
-      !empty($token) &&
-      !empty($userRememberToken) &&
-      !empty($sessionToken) &&
-      hash_equals($userRememberToken, $token) &&
-      hash_equals($userRememberToken, $sessionToken)
-    ) {
-      $user->auth_as = null;
-      $user->remember_token = null;
-      $user->save();
-
-      $request->session()->forget("display_auth_nav");
-
-      Auth::loginUsingId($userID);
-
-      return redirect("/admin/users/all");
-    } else {
-      Auth::logout();
-      return redirect("/login");
-    }
+    return redirect("/admin/users/all");
   }
 
   //Add impersonation
   public function authAsID(request $request)
   {
-    $adminUser = User::whereNotNull("auth_as")->where("role", "admin")->first();
+    $admin = Auth::user();
+    $target = User::find($request->id);
 
-    if (!$adminUser) {
-      $userID = $request->id;
-      $id = Auth::user()->id;
-
-      $user = User::find($id);
-
-      $user->auth_as = $userID;
-      $user->save();
-
-      return redirect("dashboard");
-    } else {
+    // Previously gated on "does ANY admin row have auth_as set", which made
+    // impersonation a single global slot: one admin using it locked every
+    // other admin out of the feature. It is per-session now, so several
+    // admins can impersonate at once without interfering.
+    if (!$target || (int) $target->id === (int) $admin->id || $target->role === "admin") {
       return redirect("admin/users/all");
     }
+
+    Auth::login($target);
+    // New session id on an identity change, then record who to come back
+    // to. regenerate() carries session data across, so the order is safe.
+    $request->session()->regenerate();
+    $request->session()->put("impersonator_id", $admin->id);
+
+    return redirect("dashboard");
   }
 
   //Show info about link

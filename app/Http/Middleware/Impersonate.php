@@ -2,68 +2,103 @@
 
 namespace App\Http\Middleware;
 
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
 use App\Models\User;
 use Closure;
 
+/**
+ * Renders the "you are impersonating X" bar and nothing else.
+ *
+ * Impersonation state lives in the SESSION (impersonator_id), not in a
+ * users column. The previous design stored it in users.auth_as and looked
+ * it up globally -- `the admin row with auth_as set` -- which had three
+ * consequences:
+ *
+ *   - only one impersonation could exist across the whole installation, so
+ *     one admin blocked the feature for every other admin;
+ *   - the state outlived the session. An admin who logged out mid-
+ *     impersonation was silently re-impersonated on their next login, and
+ *     because this middleware runs BEFORE the admin middleware, the
+ *     now-non-admin identity failed it and was bounced off /admin/*. The
+ *     exit control only rendered when the session token matched the stored
+ *     one, which a fresh session never does -- so there was no way out
+ *     short of editing the database;
+ *   - it authenticated the exit with users.remember_token, clobbering any
+ *     real remember-me cookie and putting a live credential in the DOM.
+ *
+ * The identity switch now happens once, in AdminController::authAsID, and
+ * is undone once, in AdminController::authAs. This middleware only decides
+ * whether to draw the bar, so a stale or unverifiable session simply
+ * doesn't get one.
+ */
 class Impersonate
 {
     public function handle($request, Closure $next)
     {
-      if(Schema::hasColumn('users', 'auth_as')) {
-        $adminUser = User::where('role', 'admin')->where(function ($query) {
-            $query->where('auth_as', '!=', null)
-                ->where('auth_as', '!=', '');
-        })->first();
+        $impersonatorId = $request->session()->get('impersonator_id');
 
-        if ($adminUser && is_numeric($adminUser->auth_as)) {
-            $originalUserId = $adminUser->id;
-            $impersonateUserId = is_numeric($adminUser->auth_as) ? $adminUser->auth_as : $adminUser->id;
-            $impersonateUser = User::find($impersonateUserId);
-            $impersonateUserName = $impersonateUser->name;
+        if (!$impersonatorId || !Auth::check()) {
+            return $next($request);
+        }
 
-            if (Auth::user()->id === $originalUserId) {
-                $token = Str::random(60);
-                if (\Route::currentRouteName() !== 'authAs') {
-                    $adminUser->remember_token = $token;
-                    $adminUser->save();
-                }
+        // The session claims an impersonation; make sure it still stands up.
+        // Anything that doesn't verify drops the claim rather than trusting it.
+        $impersonator = User::find($impersonatorId);
+        if (!$impersonator || $impersonator->role !== 'admin' || (int) $impersonator->id === (int) Auth::id()) {
+            $request->session()->forget('impersonator_id');
+            return $next($request);
+        }
 
-                Auth::loginUsingId($impersonateUserId);
-                $request->session()->put('display_auth_nav', $token);
-                $request->session()->save();
-            }
+        $response = $next($request);
 
-            if ($request->session()->has('display_auth_nav')) {
-                $dashboardUrl = url('dashboard');
-                $authAsUrl = url('/auth-as');
-                $csrfToken = csrf_token();
-                $rememberTokenUser = User::find($originalUserId);
-                $rememberToken = $rememberTokenUser->remember_token;
-                $storageToken = $request->session()->get('display_auth_nav');
+        // Only splice into actual HTML documents -- not JSON or downloads.
+        $contentType = (string) $response->headers->get('Content-Type', '');
+        if (!str_contains(strtolower($contentType), 'text/html')) {
+            return $response;
+        }
 
-                if ($storageToken === $rememberToken) {
-                    // Every value below is interpolated into a raw HTML
-                    // heredoc, so it has to be escaped here -- there is no
-                    // Blade doing it for us. $impersonateUserName is the
-                    // impersonated account's own display name, which any
-                    // customer can set to arbitrary text on /studio/profile:
-                    // unescaped, it was stored XSS that fired in an admin's
-                    // browser the moment they impersonated that account.
-                    $impersonateUserName = e($impersonateUserName);
-                    $nonce = csp_nonce();
+        $content = $response->getContent();
+        if (!is_string($content)) {
+            return $response;
+        }
 
-                    if (file_exists(base_path(findAvatar($impersonateUserId)))) {
-                        $avatarUrl = url(findAvatar($impersonateUserId));
-                    } elseif (file_exists(base_path("assets/linkstack/images/") . findFile('avatar'))) {
-                        $avatarUrl = url("assets/linkstack/images/") . "/" . findFile('avatar');
-                    } else {
-                        $avatarUrl = asset('assets/linkstack/images/logo.svg');
-                    }
+        $customHtml = $this->bar($request, Auth::user());
 
-                    $customHtml = <<<EOD
+        // preg_replace_callback, not preg_replace: "$1"/"\1" in a
+        // replacement STRING are backreferences and would splice the <body>
+        // tag's attributes into the output.
+        $response->setContent(preg_replace_callback(
+            '/<body([^>]*)>/',
+            fn ($m) => '<body' . $m[1] . '>' . $customHtml,
+            $content,
+            1
+        ));
+
+        return $response;
+    }
+
+    /**
+     * The bar itself. Every value is interpolated into a raw HTML heredoc,
+     * so anything user-controlled is escaped here -- the display name is
+     * set by the impersonated customer.
+     */
+    private function bar($request, User $impersonated): string
+    {
+        $dashboardUrl = url('dashboard');
+        $authAsUrl = url('/auth-as');
+        $csrfToken = csrf_token();
+        $nonce = csp_nonce();
+        $name = e($impersonated->name);
+
+        if (file_exists(base_path(findAvatar($impersonated->id)))) {
+            $avatarUrl = url(findAvatar($impersonated->id));
+        } elseif (file_exists(base_path("assets/linkstack/images/") . findFile('avatar'))) {
+            $avatarUrl = url("assets/linkstack/images/") . "/" . findFile('avatar');
+        } else {
+            $avatarUrl = asset('assets/linkstack/images/logo.svg');
+        }
+
+        return <<<EOD
 <style>
   .ibar {
     position: fixed;
@@ -124,7 +159,7 @@ class Impersonate
 <div class="ibar">
   <p class="itext1">
     <span>
-      <a href="$dashboardUrl"><img alt="avatar" class="iimg irounded" src="$avatarUrl">$impersonateUserName</a>
+      <a href="$dashboardUrl"><img alt="avatar" class="iimg irounded" src="$avatarUrl">$name</a>
     </span>
     <a id="ibarExit" style="cursor:pointer">
       <svg xmlns="http://www.w3.org/2000/svg" class="bi bi-x" viewBox="0 0 16 16">
@@ -138,69 +173,16 @@ class Impersonate
 
 <form id="submitForm" action="$authAsUrl" method="POST" style="display: none;">
   <input type="hidden" name="_token" value="$csrfToken">
-  <input type="hidden" name="token" value="$rememberToken">
-  <input type="hidden" name="id" value="$originalUserId">
 </form>
 
 <script nonce="$nonce">
   // Nonced listener rather than an inline onclick: script-src is enforced
-  // (no unsafe-inline) on bio pages and the studio/dashboard/admin area,
-  // so the old inline handler was silently blocked there -- the exit "X"
-  // did nothing on exactly the pages an admin impersonates from.
+  // with no unsafe-inline on bio pages and the studio / dashboard / admin
+  // area, so an inline handler is silently blocked there.
   document.getElementById('ibarExit').addEventListener('click', function () {
     document.getElementById('submitForm').submit();
   });
 </script>
 EOD;
-                } else {
-                    $customHtml = "";
-                }
-
-                $response = $next($request);
-
-                // Only splice the bar into actual HTML documents. This used
-                // to run against every response body, including JSON and
-                // file downloads -- harmless only because they rarely
-                // contain a <body> tag.
-                $contentType = (string) $response->headers->get('Content-Type', '');
-                if ($customHtml === '' || !str_contains(strtolower($contentType), 'text/html')) {
-                    return $response;
-                }
-
-                $content = $response->getContent();
-                if (!is_string($content)) {
-                    return $response;
-                }
-
-                // preg_replace_callback, not preg_replace: in a replacement
-                // string "$1" and "\1" are backreferences, so a display name
-                // containing either would corrupt the surrounding markup
-                // even after escaping.
-                $modifiedContent = preg_replace_callback(
-                    '/<body([^>]*)>/',
-                    function ($matches) use ($customHtml) {
-                        return '<body' . $matches[1] . '>' . $customHtml;
-                    },
-                    $content,
-                    1
-                );
-                $response->setContent($modifiedContent);
-
-                return $response;
-            } else {
-                if ($request->session()->has('display_auth_nav')) {
-                    $request->session()->forget('display_auth_nav');
-                    Auth::logout();
-                }
-                return $next($request);
-            }
-        } else {
-            return $next($request);
-        }
-
-      } else {
-        return $next($request);
-      }
-
     }
 }
