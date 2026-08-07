@@ -49,9 +49,13 @@ class ContactFormController extends Controller
                 ->withFragment("contact-form-$id");
         }
 
+        // name and email become the Reply-To pair in ContactFormMail, and
+        // this endpoint is public -- so both are attacker-supplied values
+        // landing in a mail header. The framework's email rule accepts CRLF
+        // on this branch (see mm_header_safe_rule).
         $data = $request->validate([
-            'name'    => ['required', 'string', 'max:100'],
-            'email'   => ['required', 'email', 'max:255'],
+            'name'    => ['required', 'string', 'max:100', mm_header_safe_rule()],
+            'email'   => ['required', 'email', 'max:255', mm_header_safe_rule()],
             'message' => ['required', 'string', 'max:5000'],
         ]);
 
