@@ -61,7 +61,15 @@ fi
 php artisan mm:ensure-admin
 
 # artisan ran as root — hand mutable paths back to the web user.
-chown -R www-data:www-data storage bootstrap/cache config .env "$DATA"
+#
+# assets/ is in this list because the app WRITES there at render time, not
+# just on upload: elements/buttons.blade.php copies favicons into
+# assets/favicon/icons/, and editSite writes assets/linkstack/images/.
+# Leaving it root-owned makes every bio page containing a link 500 with
+# "copy(...): Permission denied" — which is exactly what happened when this
+# list was first narrowed. assets/img is a symlink to $DATA/img, which is
+# chowned separately above.
+chown -R www-data:www-data storage bootstrap/cache config .env assets "$DATA"
 
 # Laravel scheduler (weekly storage:reconcile) without a cron daemon.
 (
