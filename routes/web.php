@@ -39,7 +39,32 @@ if(file_exists(base_path('storage/app/ISINSTALLED'))){
  }
 
  // Installer
-if(file_exists(base_path('INSTALLING')) or file_exists(base_path('INSTALLERLOCK'))){
+//
+// The installer routes are unauthenticated by nature, so they must be
+// registered ONLY while the app is genuinely uninstalled. A marker file on
+// its own was not a safe test for that:
+//
+//   - INSTALLING was tracked in git, so every fresh clone / CI checkout
+//     landed with the installer live (including the /skip route below).
+//   - InstallerController::createAdmin CREATES INSTALLERLOCK and only
+//     options() removes it, so an install abandoned mid-wizard left the
+//     installer reachable permanently.
+//
+// "No users in the users table" is the condition that actually means
+// uninstalled, so it is the one that gates registration. A database we
+// can't query at all is the one state the installer genuinely needs to
+// serve, so that counts as uninstalled too.
+$installerMarker = file_exists(base_path('INSTALLING')) || file_exists(base_path('INSTALLERLOCK'));
+$installerActive = false;
+if ($installerMarker && !file_exists(base_path('storage/app/ISINSTALLED'))) {
+    try {
+        $installerActive = DB::table('users')->count() === 0;
+    } catch (\Throwable $e) {
+        $installerActive = true;
+    }
+}
+
+if ($installerActive) {
 
   Route::get('/', [InstallerController::class, 'showInstaller'])->name('showInstaller');
   Route::post('/create-admin', [InstallerController::class, 'createAdmin'])->name('createAdmin');
@@ -47,7 +72,22 @@ if(file_exists(base_path('INSTALLING')) or file_exists(base_path('INSTALLERLOCK'
   Route::post('/mysql', [InstallerController::class, 'mysql'])->name('mysql');
   Route::post('/options', [InstallerController::class, 'options'])->name('options');
   Route::get('/mysql-test', [InstallerController::class, 'mysqlTest'])->name('mysqlTest');
-  Route::get('/skip', function () {Artisan::call('db:seed', ['--class' => 'AdminSeeder',]); Auth::login(User::where('name', 'admin')->first()); return redirect(url('dashboard'));});
+  // Seeds AdminSeeder's well-known admin (admin@admin.com / 12345678) and
+  // logs the caller straight in, with no credentials. Only ever valid on a
+  // genuinely empty install — re-check at request time, not just at
+  // registration time, so a cached route file can't keep it alive.
+  Route::get('/skip', function () {
+    try {
+      $empty = DB::table('users')->count() === 0;
+    } catch (\Throwable $e) {
+      $empty = false;
+    }
+    abort_unless($empty, 404);
+
+    Artisan::call('db:seed', ['--class' => 'AdminSeeder']);
+    Auth::login(User::where('name', 'admin')->firstOrFail());
+    return redirect(url('dashboard'));
+  });
   Route::post('/editConfigInstaller', [InstallerController::class, 'editConfigInstaller'])->name('editConfigInstaller');
 
   Route::get('{any}', function() {
@@ -244,7 +284,9 @@ if(env('ALLOW_USER_EXPORT') != false){
 if(env('ALLOW_USER_IMPORT') != false){
   Route::post('/import-data', [UserController::class, 'importData'])->name('importData');
 }
-Route::get('/studio/linkparamform_part/{typeid}/{linkid}', [LinkTypeViewController::class, 'getParamForm'])->name('linkparamform.part');
+Route::get('/studio/linkparamform_part/{typeid}/{linkid}', [LinkTypeViewController::class, 'getParamForm'])
+  ->name('linkparamform.part')
+  ->where(['typeid' => '[a-zA-Z0-9_-]+', 'linkid' => '[0-9]+']);
 });
 });
 }

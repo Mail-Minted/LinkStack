@@ -3,6 +3,13 @@
 /public/hot
 /public/storage
 /storage/*.key
+
+# Installer state markers. These MUST never be tracked: routes/web.php
+# registers the unauthenticated installer (including /skip, which seeds a
+# well-known admin and logs the caller in) while either is present, so a
+# tracked marker means every fresh clone ships an open admin backdoor.
+/INSTALLING
+/INSTALLERLOCK
 /vendor
 .env
 .env.backup
@@ -34,3 +41,4 @@ _ide_*
 /UI-PASS-PLAN.md
 /CSP-HARDENING-PLAN.md
 /DRAFT-PUBLISH-PLAN.md
+/SECURITY-ASSESSMENT.md
