@@ -230,8 +230,11 @@ Route::get('/studio/theme', function () {
         : redirect('/studio/edit#appearance');
 })->name('showTheme');
 Route::post('/studio/theme', [UserController::class, 'editTheme'])->name('editTheme');
-Route::get('/deleteLink/{id}', [UserController::class, 'deleteLink'])->name('deleteLink')->middleware('link-id');
-Route::get('/upLink/{up}/{id}', [UserController::class, 'upLink'])->name('upLink')->middleware('link-id');
+// State-changing routes are POST so VerifyCsrfToken actually covers them;
+// as GETs they had no CSRF protection, and SameSite=lax still sends the
+// session cookie on a top-level navigation. Call sites use <x-post-action>.
+Route::post('/deleteLink/{id}', [UserController::class, 'deleteLink'])->name('deleteLink')->middleware('link-id');
+Route::post('/upLink/{up}/{id}', [UserController::class, 'upLink'])->name('upLink')->middleware('link-id');
 Route::post('/studio/edit-link/{id}', [UserController::class, 'editLink'])->name('editLink')->middleware('link-id');
 // Legacy /studio/button-editor routes removed: the per-block CSS editor
 // was replaced by the Appearance section of the unified /studio/edit
@@ -240,7 +243,7 @@ Route::get('/studio/page', fn() => redirect('/studio/edit#basics'))->name('showP
 Route::get('/studio/no_page_name', fn() => redirect('/studio/edit#basics'));
 Route::post('/studio/page', [UserController::class, 'editPage'])->name('editPage');
 Route::post('/studio/background', [UserController::class, 'themeBackground'])->name('themeBackground');
-Route::get('/studio/rem-background', [UserController::class, 'removeBackground'])->name('removeBackground');
+Route::post('/studio/rem-background', [UserController::class, 'removeBackground'])->name('removeBackground');
 Route::get('/studio/profile', [UserController::class, 'showProfile'])->name('showProfile');
 Route::post('/studio/profile', [UserController::class, 'editProfile'])->name('editProfile');
 Route::post('/studio/profile/analytics', [UserController::class, 'editAnalytics'])->name('editAnalytics');
@@ -262,12 +265,12 @@ Route::get('/stripe/connect/callback', [StripeConnectController::class, 'callbac
 Route::get('/stripe/status', [StripeConnectController::class, 'status'])->name('stripe.status');
 Route::post('/stripe/disconnect', [StripeConnectController::class, 'disconnect'])->name('stripe.disconnect');
 Route::post('/edit-icons', [UserController::class, 'editIcons'])->name('editIcons');
-Route::get('/clearIcon/{id}', [UserController::class, 'clearIcon'])->name('clearIcon')->middleware('link-id');
-Route::get('/studio/page/delprofilepicture', [UserController::class, 'delProfilePicture'])->name('delProfilePicture');
+Route::post('/clearIcon/{id}', [UserController::class, 'clearIcon'])->name('clearIcon')->middleware('link-id');
+Route::post('/studio/page/delprofilepicture', [UserController::class, 'delProfilePicture'])->name('delProfilePicture');
 Route::post('/studio/profile-picture', [UserController::class, 'editProfilePicture'])->name('editProfilePicture');
 // Custom browser-tab icon (favicon) for the user's public page — white-label branding.
 Route::post('/studio/favicon', [UserController::class, 'editFavicon'])->name('editFavicon');
-Route::get('/studio/rem-favicon', [UserController::class, 'removeFavicon'])->name('removeFavicon');
+Route::post('/studio/rem-favicon', [UserController::class, 'removeFavicon'])->name('removeFavicon');
 // Self-serve /studio/delete-user removed — see UserController note.
 // Account deletion is admin/deprovision-only.
 Route::post('/auth-as', [AdminController::class, 'authAs'])->name('authAs');
@@ -313,14 +316,14 @@ Route::group([
     Route::get('/panel/index', function(){return redirect(url('dashboard'));});
     Route::get('/admin/users', [AdminController::class, 'users'])->name('showUsers');
     Route::get('/admin/links/{id}', [AdminController::class, 'showLinksUser'])->name('showLinksUser');
-    Route::get('/admin/deleteLink/{id}', [AdminController::class, 'deleteLinkUser'])->name('deleteLinkUser');
-    Route::get('/admin/users/block/{block}/{id}', [AdminController::class, 'blockUser'])->name('blockUser');
-    Route::get('/admin/users/verify/{verify}/{id}', [AdminController::class, 'verifyCheckUser'])->name('verifyCheckUser');
-    Route::get('/admin/users/verify-mail/{verify}/{id}', [AdminController::class, 'verifyUser'])->name('verifyUser');
+    Route::post('/admin/deleteLink/{id}', [AdminController::class, 'deleteLinkUser'])->name('deleteLinkUser');
+    Route::post('/admin/users/block/{block}/{id}', [AdminController::class, 'blockUser'])->name('blockUser');
+    Route::post('/admin/users/verify/{verify}/{id}', [AdminController::class, 'verifyCheckUser'])->name('verifyCheckUser');
+    Route::post('/admin/users/verify-mail/{verify}/{id}', [AdminController::class, 'verifyUser'])->name('verifyUser');
     Route::get('/admin/edit-user/{id}', [AdminController::class, 'showUser'])->name('showUser');
     Route::post('/admin/edit-user/{id}', [AdminController::class, 'editUser'])->name('editUser');
     Route::get('/admin/new-user', [AdminController::class, 'createNewUser'])->name('createNewUser')->middleware('max.users');
-    Route::get('/admin/delete-user/{id}', [AdminController::class, 'deleteUser'])->name('deleteUser');
+    Route::post('/admin/delete-user/{id}', [AdminController::class, 'deleteUser'])->name('deleteUser');
     Route::post('/admin/delete-table-user/{id}', [AdminController::class, 'deleteTableUser'])->name('deleteTableUser');
     Route::get('/admin/pages', [AdminController::class, 'showSitePage'])->name('showSitePage');
     Route::post('/admin/pages', [AdminController::class, 'editSitePage'])->name('editSitePage');
@@ -330,8 +333,8 @@ Route::group([
     Route::post('/admin/env', [AdminController::class, 'editENV'])->name('editENV');
     Route::get('/admin/site', [AdminController::class, 'showSite'])->name('showSite');
     Route::post('/admin/site', [AdminController::class, 'editSite'])->name('editSite');
-    Route::get('/admin/site/delavatar', [AdminController::class, 'delAvatar'])->name('delAvatar');
-    Route::get('/admin/site/delfavicon', [AdminController::class, 'delFavicon'])->name('delFavicon');
+    Route::post('/admin/site/delavatar', [AdminController::class, 'delAvatar'])->name('delAvatar');
+    Route::post('/admin/site/delfavicon', [AdminController::class, 'delFavicon'])->name('delFavicon');
     Route::get('/admin/phpinfo', [AdminController::class, 'phpinfo'])->name('phpinfo');
     Route::get('/admin/backups', [AdminController::class, 'showBackups'])->name('showBackups');
     Route::post('/admin/theme', [AdminController::class, 'deleteTheme'])->name('deleteTheme');
@@ -340,7 +343,7 @@ Route::group([
     Route::get('/admin/config', [AdminController::class, 'showConfig'])->name('showConfig');
     Route::post('/admin/config', [AdminController::class, 'editConfig'])->name('editConfig');
     Route::get('/send-test-email', [AdminController::class, 'SendTestMail'])->name('SendTestMail');
-    Route::get('/auth-as/{id}', [AdminController::class, 'authAsID'])->name('authAsID');
+    Route::post('/auth-as/{id}', [AdminController::class, 'authAsID'])->name('authAsID');
     Route::get('/theme-updater', function () {return view('studio/theme-updater', []);});
     Route::get('/update', function () {return view('update', []);});
     Route::get('/backup', function () {return view('backup', []);});

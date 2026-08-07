@@ -207,7 +207,10 @@ if(!function_exists('strp')){function strp($urlStrp){return str_replace(array('h
                                 <span><i class="bi bi-bar-chart-line"></i> {{ $link->click_number }} {{__('messages.Clicks')}}</span>
                                 @endif
 
-                                <a style="float: right;" href="{{ route('deleteLink', $link->id ) }}" data-confirm="{{ __('messages.confirm_delete', ['title' => $link->title]) }}" class="btn btn-sm me-1 btn-icon btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Delete" data-bs-placement="top" data-original-title="{{__('messages.Delete')}}">
+                                {{-- me-1 belongs on the floated wrapper, not the button: inside the form it
+     made the float 4px wider than the sibling Edit control and wrapped the
+     two onto separate lines. --}}
+                                <x-post-action :action="route('deleteLink', $link->id)" form-style="float: right;" form-class="me-1" data-confirm="{{ __('messages.confirm_delete', ['title' => $link->title]) }}" class="btn btn-sm btn-icon btn-danger" data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Delete" data-bs-placement="top" data-original-title="{{__('messages.Delete')}}">
                                     <span class="btn-inner">
                                        <svg class="icon-20" width="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor">
                                           <path d="M19.3248 9.46826C19.3248 9.46826 18.7818 16.2033 18.4668 19.0403C18.3168 20.3953 17.4798 21.1893 16.1088 21.2143C13.4998 21.2613 10.8878 21.2643 8.27979 21.2093C6.96079 21.1823 6.13779 20.3783 5.99079 19.0473C5.67379 16.1853 5.13379 9.46826 5.13379 9.46826" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -215,7 +218,7 @@ if(!function_exists('strp')){function strp($urlStrp){return str_replace(array('h
                                           <path d="M17.4406 6.23973C16.6556 6.23973 15.9796 5.68473 15.8256 4.91573L15.5826 3.69973C15.4326 3.13873 14.9246 2.75073 14.3456 2.75073H10.1126C9.53358 2.75073 9.02558 3.13873 8.87558 3.69973L8.63258 4.91573C8.47858 5.68473 7.80258 6.23973 7.01758 6.23973" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
                                        </svg>
                                     </span>
-                                 </a>
+                                 </x-post-action>
 
                                     <a style="float: right;" href="{{ route('editLink', $link->id ) }}" data-mm-edit class="btn btn-sm me-1 btn-icon btn-warning" data-bs-toggle="tooltip" data-bs-placement="top" data-original-title="{{__('messages.Edit')}}" aria-label="Edit" data-bs-original-title="{{__('messages.Edit')}}">
                                        <span class="btn-inner">
@@ -227,7 +230,7 @@ if(!function_exists('strp')){function strp($urlStrp){return str_replace(array('h
                                        </span>
                                     </a>
 
-                                @if(file_exists(base_path("assets/favicon/icons/").localIcon($link->id)))<a style="float: right;" href="{{ route('clearIcon', $link->id ) }}"  data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Add" data-bs-placement="top" data-original-title="Clear icon cache" class="float-right hvr-grow p-1 text-primary"><i style="-webkit-text-stroke:1px;padding-right:5px;" class="bi bi-arrow-repeat"></i></a>@endif
+                                @if(file_exists(base_path("assets/favicon/icons/").localIcon($link->id)))<x-post-action :action="route('clearIcon', $link->id)" form-style="float: right;" data-bs-toggle="tooltip" data-bs-placement="top" aria-label="Add" data-bs-placement="top" data-original-title="Clear icon cache" class="mm-post-bare float-right hvr-grow p-1 text-primary"><i style="-webkit-text-stroke:1px;padding-right:5px;" class="bi bi-arrow-repeat"></i></x-post-action>@endif
 
                             </div>
                         </div>

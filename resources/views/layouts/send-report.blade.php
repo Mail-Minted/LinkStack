@@ -69,7 +69,12 @@
 
         <div class="button-container">
             <a href="{{url('admin/users')."?table[search]=".$formData['name']}}" class="button view">{{ __('messages.report_mail_button_profile') }}</a>
-            <a href="{{url('admin/delete-user')."/".$formData['id']}}" class="button" style="margin-left: 10px;">{{ __('messages.report_mail_button_delete') }}</a>
+            {{-- Points at the user's admin page rather than firing the delete
+                 directly. A one-click destructive GET in an email is fired by
+                 anything that prefetches links -- mail scanners, link
+                 previewers, security proxies -- and delete-user is a POST now
+                 in any case, which an email cannot send. --}}
+            <a href="{{url('admin/edit-user')."/".$formData['id']}}" class="button" style="margin-left: 10px;">{{ __('messages.report_mail_button_delete') }}</a>
         </div>
     </div>
 </body>
