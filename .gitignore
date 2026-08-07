@@ -29,6 +29,11 @@ npm-debug.log
 yarn-error.log
 _ide_*
 
+# Claude Code working directory. Holds git worktrees, and those worktrees
+# carry their own .env — i.e. a full copy of the live secrets. This repo is
+# public, so a stray `git add -A` here would publish them.
+/.claude
+
 # Internal reference docs — kept locally, not published to the public
 # AGPL source repo (plans, kickoff prompts, pre-deploy audit).
 /CUSTOM-FEATURES.md

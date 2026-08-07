@@ -1489,11 +1489,17 @@ class UserController extends Controller
             $file = $request->file('import');
             $jsonString = $file->get();
             $userData = json_decode($jsonString, true);
-    
+
+            if (!is_array($userData)) {
+                throw new \Exception('Import file is not valid JSON');
+            }
+
             // Update the authenticated user's profile data if defined in the JSON file
             $user = auth()->user();
             if (isset($userData['name'])) {
-                $user->name = $userData['name'];
+                // Plain text only: name is interpolated into markup in
+                // places that don't escape it, and the column is 255 wide.
+                $user->name = mb_substr(trim(strip_tags((string) $userData['name'])), 0, 255);
             }
 
             if (isset($userData['littlelink_description'])) {
@@ -1503,11 +1509,32 @@ class UserController extends Controller
             if (isset($userData['image_data'])) {
 
                 $allowedExtensions = array('jpeg', 'jpg', 'png', 'webp');
-                $userExtension = strtolower($userData['image_extension']);
+                $userExtension = strtolower((string) ($userData['image_extension'] ?? ''));
 
-                if (in_array($userExtension, $allowedExtensions)) {
+                if (in_array($userExtension, $allowedExtensions, true)) {
                 // Decode the image data from Base64
-                $imageData = base64_decode($userData['image_data']);
+                $imageData = base64_decode((string) $userData['image_data'], true);
+
+                // The extension was allowlisted but the CONTENT never was,
+                // so any bytes at all could be written under assets/img/ —
+                // which the web server hands out directly, without passing
+                // through the middleware that sets nosniff. That makes an
+                // uploaded "image" usable as a same-origin script source.
+                // Require the bytes to really decode as the claimed type.
+                if ($imageData === false || strlen($imageData) > 2 * 1024 * 1024) {
+                    throw new \Exception('Invalid image data');
+                }
+                $imageInfo = @getimagesizefromstring($imageData);
+                $mimeExtensions = [
+                    'image/jpeg' => ['jpeg', 'jpg'],
+                    'image/png'  => ['png'],
+                    'image/webp' => ['webp'],
+                ];
+                if ($imageInfo === false
+                    || !isset($mimeExtensions[$imageInfo['mime']])
+                    || !in_array($userExtension, $mimeExtensions[$imageInfo['mime']], true)) {
+                    throw new \Exception('Invalid image data');
+                }
 
                 // Delete the user's current avatar if it exists
                 while (findAvatar(Auth::id()) !== "error.error") {
@@ -1524,13 +1551,32 @@ class UserController extends Controller
                 }
             }
 
+            $links = $userData['links'] ?? [];
+            if (!is_array($links)) {
+                throw new \Exception('Import file has no valid links list');
+            }
+
+            // Real rows carry an empty type for legacy / predefined blocks,
+            // so '' stays allowed; anything else has to name a real block.
+            $allowedTypes = LinkType::get()->pluck('typename')->filter()->all();
+
+            // The old flow saved the user, deleted every link, and only then
+            // started importing — so anything that threw part-way through
+            // (an invalid URL, a duplicate name) left the account with its
+            // links already gone. Commit or roll back as one unit.
+            DB::transaction(function () use ($user, $links, $allowedTypes) {
+
             $user->save();
-    
+
             // Delete all links for the authenticated user
             Link::where('user_id', $user->id)->delete();
-    
+
             // Loop through each link in $userData and create a new link for the user
-            foreach ($userData['links'] as $linkData) {
+            foreach ($links as $linkData) {
+
+                if (!is_array($linkData)) {
+                    throw new \Exception('Invalid link');
+                }
 
                 $validatedData = Validator::make($linkData, [
                     'link' => 'nullable|exturl',
@@ -1541,33 +1587,73 @@ class UserController extends Controller
                 }
 
                 $newLink = new Link();
-    
-                // Copy over the link data from $linkData to $newLink
-                $newLink->button_id = $linkData['button_id'];
-                $newLink->link = $linkData['link'];
-                
-                // Sanitize the title (button_id 93 == text block, which
-                // permits rich HTML). purify_user_html strips XSS vectors.
-                if ($linkData['button_id'] == 93) {
-                    $newLink->title = purify_user_html($linkData['title']);
-                } else {
-                    $newLink->title = $linkData['title'];
+
+                // The template a block renders through is chosen by `type`
+                // (see linkstack/elements/buttons.blade.php), so `type` has
+                // to be a real block — an import must not be able to name
+                // an arbitrary one.
+                $type = (string) ($linkData['type'] ?? '');
+                if ($type !== '' && !in_array($type, $allowedTypes, true)) {
+                    throw new \Exception('Invalid block type');
                 }
 
-                $newLink->order = $linkData['order'];
+                // Copy over the link data from $linkData to $newLink
+                $newLink->button_id = (int) ($linkData['button_id'] ?? 1);
+                $newLink->link = $linkData['link'] ?? '';
+
+                // Sanitize the title. This gate keys off the SAME thing that
+                // selects the template: blocks/text/display.blade.php is the
+                // one that echoes the title unescaped (under ALLOW_USER_HTML),
+                // and it is reached via type "text". Keying off button_id
+                // instead — as this did — meant an import declaring
+                // button_id != 93 with type "text" skipped the purifier and
+                // landed raw HTML on a public page. button_id 93 is still
+                // honoured because that is what the text handler writes.
+                $isTextBlock = ($type === 'text') || ((int) ($linkData['button_id'] ?? 0) === 93);
+                $newLink->title = $isTextBlock
+                    ? purify_user_html((string) ($linkData['title'] ?? ''))
+                    : strip_tags((string) ($linkData['title'] ?? ''));
+
+                $newLink->order = (int) ($linkData['order'] ?? 0);
                 $newLink->click_number = 0;
-                $newLink->up_link = $linkData['up_link'];
-                $newLink->custom_css = $linkData['custom_css'];
-                $newLink->custom_icon = $linkData['custom_icon'];
-                $newLink->type = $linkData['type'];
-                $newLink->type_params = $linkData['type_params'];
+                $newLink->up_link = (int) ($linkData['up_link'] ?? 0);
+                // Same sanitizers the normal save path applies (saveLink);
+                // the import used to store both verbatim, so a crafted
+                // custom_css could close the generated rule and @import an
+                // attacker stylesheet onto the public page.
+                $newLink->custom_css = mm_sanitize_block_css((string) ($linkData['custom_css'] ?? ''));
+                $newLink->custom_icon = preg_replace(
+                    '/[^a-zA-Z0-9 _-]/', '', (string) ($linkData['custom_icon'] ?? '')
+                );
+                $newLink->type = $type;
+
+                // type_params carries the render-control flags, and
+                // custom_html is what makes buttons.blade.php dispatch to
+                // blocks::<type>.display at all. Those are properties of the
+                // block type, not of the imported file — re-derive them.
+                $typeParams = json_decode((string) ($linkData['type_params'] ?? '{}'), true);
+                $typeParams = is_array($typeParams) ? $typeParams : [];
+                unset(
+                    $typeParams['custom_html'],
+                    $typeParams['ignore_container'],
+                    $typeParams['include_libraries']
+                );
+                if ($linkType = LinkType::findByTypename($type)) {
+                    $typeParams['custom_html']       = $linkType->custom_html;
+                    $typeParams['ignore_container']  = $linkType->ignore_container;
+                    $typeParams['include_libraries'] = $linkType->include_libraries;
+                }
+                $newLink->type_params = json_encode($typeParams);
     
                 // Set the user ID to the current user's ID
                 $newLink->user_id = $user->id;
-    
+
                 // Save the new link to the database
                 $newLink->save();
             }
+
+            });
+
             return redirect('studio/profile')->with('success', __('messages.Profile updated successfully!'));
         } catch (\Exception $e) {
             return redirect('studio/profile')->with('error', __('messages.An error occurred while updating your profile.'));
