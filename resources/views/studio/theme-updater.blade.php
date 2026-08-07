@@ -42,10 +42,13 @@
                                 $pattern = '/Source code:.*/';
                                 preg_match($pattern, $text, $matches, PREG_OFFSET_CAPTURE);
                                 $sourceURL = substr($matches[0][0],13);
-                                $replaced = str_replace("https://github.com/", "https://raw.githubusercontent.com/", trim($sourceURL));
-                                $replaced = $replaced . "/main/readme.md";
-                                if (strpos($sourceURL, 'github.com')){
-                                ini_set('user_agent', 'Mozilla/4.0 (compatible; MSIE 6.0)');
+                                // Same host validation as AdminController::updateThemes.
+                                // strpos($sourceURL, 'github.com') only required the
+                                // substring somewhere past position 0, so a readme
+                                // could point this fetch at any host it liked.
+                                $mmRepoUrl = mm_theme_source_repo($sourceURL);
+                                $replaced = $mmRepoUrl === null ? null : str_replace("https://github.com/", "https://raw.githubusercontent.com/", $mmRepoUrl) . "/main/readme.md";
+                                if ($mmRepoUrl !== null){
                                 try{
                                     $textGit = external_file_get_contents($replaced);
                                     $patternGit = '/Theme Version:.*/';
@@ -82,9 +85,9 @@
                             } } ?>
                 </table>
         </div>
-        <a href="{{ url('update/theme') }}" class="btn btn-gray ms-3 mb-4">
+        <x-post-action :action="route('updateThemes')" form-class="ms-3 mb-4" class="btn btn-gray" data-confirm="{{__('messages.Update all themes')}}?">
             <span id="updateicon"><i class="bi bi-arrow-repeat"></i></span> {{__('messages.Update all themes')}}
-        </a>
+        </x-post-action>
       </div>
     </div>
   </div>

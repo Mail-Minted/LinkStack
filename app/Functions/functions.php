@@ -490,6 +490,75 @@ if (!function_exists('mm_safe_href')) {
  * dangerous schemes inside it are removed.
  */
 /**
+ * Validate a "Source code:" URL read out of a theme's readme.md, returning
+ * the canonical repo URL or null.
+ *
+ * The old test was `strpos($url, 'github.com')`, which only requires the
+ * substring to appear SOMEWHERE past position 0. A readme line such as
+ *
+ *     Source code: http://attacker.example/x#github.com
+ *
+ * passed it, and the fragment is dropped when fetching, so the attacker's
+ * own host answered -- turning the theme updater into an SSRF and, because
+ * the response drives a download-and-extract, into an arbitrary file write.
+ * readme.md content arrives with any uploaded theme, so it is untrusted.
+ *
+ * Parse the host and match it exactly instead. Only https github.com repo
+ * URLs of the form https://github.com/<owner>/<repo> are accepted.
+ */
+if (!function_exists('mm_theme_source_repo')) {
+  function mm_theme_source_repo($sourceUrl): ?string
+  {
+      $sourceUrl = trim((string) $sourceUrl);
+      if ($sourceUrl === '') {
+          return null;
+      }
+
+      $parts = parse_url($sourceUrl);
+      if ($parts === false || ($parts['scheme'] ?? '') !== 'https') {
+          return null;
+      }
+      if (!in_array(strtolower($parts['host'] ?? ''), ['github.com', 'www.github.com'], true)) {
+          return null;
+      }
+
+      // Exactly owner/repo — no extra path, no query, no fragment.
+      $path = trim((string) ($parts['path'] ?? ''), '/');
+      if (!preg_match('#^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$#', $path)) {
+          return null;
+      }
+
+      return 'https://github.com/' . $path;
+  }
+}
+
+/**
+ * Reject an archive whose entries would land outside the target directory
+ * (absolute paths or ../ traversal) BEFORE anything is extracted.
+ *
+ * Same guard UserController::editTheme applies to admin theme uploads; the
+ * theme updater's own extract had none, so a crafted archive could drop a
+ * .php file into a servable path. Backslashes are normalized first so a
+ * Windows-crafted "..\..\" cannot slip past.
+ */
+if (!function_exists('mm_zip_entries_are_safe')) {
+  function mm_zip_entries_are_safe(\ZipArchive $zip): bool
+  {
+      for ($i = 0; $i < $zip->numFiles; $i++) {
+          $entry = str_replace('\\', '/', (string) $zip->getNameIndex($i));
+          if ($entry === '') {
+              continue;
+          }
+          if ($entry[0] === '/' || preg_match('#(^|/)\.\.(/|$)#', $entry)) {
+              return false;
+          }
+      }
+
+      return true;
+  }
+}
+
+/**
  * The set of themes actually installed under themes/, plus the two values
  * that mean "no theme".
  *

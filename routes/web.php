@@ -339,7 +339,9 @@ Route::group([
     Route::get('/admin/backups', [AdminController::class, 'showBackups'])->name('showBackups');
     Route::post('/admin/theme', [AdminController::class, 'deleteTheme'])->name('deleteTheme');
     Route::get('/admin/theme', [AdminController::class, 'showThemes'])->name('showThemes');
-    Route::get('/update/theme', [AdminController::class, 'updateThemes'])->name('updateThemes');
+    // POST: this downloads and extracts archives, so it must not be
+    // triggerable by an admin merely loading a URL (<img src=...>).
+    Route::post('/update/theme', [AdminController::class, 'updateThemes'])->name('updateThemes');
     Route::get('/admin/config', [AdminController::class, 'showConfig'])->name('showConfig');
     Route::post('/admin/config', [AdminController::class, 'editConfig'])->name('editConfig');
     Route::get('/send-test-email', [AdminController::class, 'SendTestMail'])->name('SendTestMail');
