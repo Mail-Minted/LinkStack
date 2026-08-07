@@ -134,4 +134,45 @@ class ContactFormTest extends TestCase
         $this->post("/contact-form/{$block->id}/submit", $this->validPayload())
             ->assertStatus(429);
     }
+
+    /**
+     * Defense in depth, not a live fix.
+     *
+     * name and email become the Reply-To pair, and this endpoint is public.
+     * Laravel's advisory GHSA-5vg9-5847-vvmq (CRLF in the default email
+     * rule) has no fix below 12.60, so the validation carries it here --
+     * but note the exposure was already closed twice over: the installed
+     * email rule rejects CRLF, and Symfony strips CR/LF from a display name
+     * and quotes it rather than emitting a second header line. This pins
+     * the input bound so a future mailer or transport change cannot quietly
+     * reopen it.
+     */
+    public function test_control_characters_are_rejected_in_the_reply_to_pair(): void
+    {
+        Mail::fake();
+        $block = $this->makeContactBlock();
+
+        $this->post("/contact-form/{$block->id}/submit", $this->validPayload([
+            'name' => "Ada\r\nBcc: attacker@evil.test",
+        ]))->assertSessionHasErrors('name');
+
+        $this->post("/contact-form/{$block->id}/submit", $this->validPayload([
+            'email' => "ada@example.test\r\nBcc: attacker@evil.test",
+        ]))->assertSessionHasErrors('email');
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_an_ordinary_submission_is_unaffected(): void
+    {
+        Mail::fake();
+        $block = $this->makeContactBlock();
+
+        // Names with punctuation and non-ASCII must still get through.
+        $this->post("/contact-form/{$block->id}/submit", $this->validPayload([
+            'name' => "Ada O'Brien-Lovelace \u{00e9}",
+        ]))->assertSessionHasNoErrors();
+
+        Mail::assertSent(\App\Mail\ContactFormMail::class);
+    }
 }

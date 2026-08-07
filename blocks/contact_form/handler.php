@@ -23,8 +23,11 @@ function handleLinkType($request, $linkType) {
 
     $rules = [
         'title'   => ['required', 'string', 'max:100'],
-        'link'    => ['required', 'email', 'max:255'],
-        'subject' => ['nullable', 'string', 'max:150'],
+        // Destination address (Mail::to) and subject line both end up in
+        // mail headers, and the framework's email rule accepts CRLF on this
+        // branch -- see mm_header_safe_rule().
+        'link'    => ['required', 'email', 'max:255', mm_header_safe_rule()],
+        'subject' => ['nullable', 'string', 'max:150', mm_header_safe_rule()],
     ];
 
     $linkData = [

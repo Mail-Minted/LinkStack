@@ -490,6 +490,27 @@ if (!function_exists('mm_safe_href')) {
  * dangerous schemes inside it are removed.
  */
 /**
+ * Validation rule rejecting control characters, for any value that ends up
+ * in a mail header.
+ *
+ * Laravel's default `email` rule accepts addresses containing CR/LF
+ * (GHSA-5vg9-5847-vvmq). The fix landed in 12.60.0 and was never
+ * backported to 9/10/11, so on this branch there is no framework-level
+ * remedy -- the validation has to reject them.
+ *
+ * Applies to the contact block's Reply-To pair (visitor-supplied, and the
+ * form is public), its destination address, and its subject line.
+ */
+if (!function_exists('mm_header_safe_rule')) {
+  function mm_header_safe_rule(): string
+  {
+      // No C0 controls and no DEL. Anything that could start a new header
+      // line, or smuggle one, is out.
+      return 'regex:/^[^\x00-\x1F\x7F]*$/';
+  }
+}
+
+/**
  * Validate a "Source code:" URL read out of a theme's readme.md, returning
  * the canonical repo URL or null.
  *
