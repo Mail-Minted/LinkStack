@@ -39,8 +39,10 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
+use App\Models\User;
 
 Route::get('/sso/mailminted', function (Request $request) {
     $token = $request->query('token');
@@ -61,17 +63,53 @@ Route::get('/sso/mailminted', function (Request $request) {
         return redirect('/login')->with('error', 'SSO token issuer mismatch.');
     }
 
+    // firebase/php-jwt enforces `exp` only when the claim is present, so a
+    // token minted without one never expires. The 60-second TTL was an
+    // issuer-side convention this verifier did not actually require.
+    // Tolerate a missing `iat` by bounding against now instead, so this
+    // does not depend on the issuer sending both.
+    $exp = $decoded->exp ?? null;
+    $iat = $decoded->iat ?? null;
+    $maxLifetime = 300;
+    $lifetimeOk = $exp && ($iat ? ($exp - $iat) <= $maxLifetime : $exp <= (time() + $maxLifetime));
+    if (!$lifetimeOk) {
+        Log::warning('Mail Minted SSO rejected: missing or over-long lifetime');
+        return redirect('/login')->with('error', 'SSO token is invalid or expired.');
+    }
+
+    // Anti-replay. The token rides in the query string, so it lands in
+    // browser history, Referer headers and any proxy log in between; within
+    // its TTL it was replayable by anyone who picked it up.
+    //
+    // Keyed on `jti` when the issuer sends one, otherwise on a hash of the
+    // token itself -- which is already unique per mint. Deriving the key
+    // this way means one-shot behaviour needs no coordinated change on the
+    // Mail Minted side; requiring a jti outright would have broken every
+    // existing handoff the moment this deployed.
+    $jti = (is_string($decoded->jti ?? null) && $decoded->jti !== '')
+        ? $decoded->jti
+        : $token;
+    if (!Cache::add('sso_jti_' . hash('sha256', $jti), true, now()->addMinutes(10))) {
+        Log::warning('Mail Minted SSO rejected: token replay');
+        return redirect('/login')->with('error', 'SSO token is invalid or expired.');
+    }
+
     $userId = $decoded->sub ?? null;
     if (!$userId) {
         return redirect('/login')->with('error', 'SSO token missing subject.');
     }
 
-    // Auth::loginUsingId returns false if the user does not exist.
-    if (!Auth::loginUsingId($userId)) {
-        Log::warning('Mail Minted SSO: no LinkStack user for id ' . $userId);
+    // Check suspension here rather than relying on the dashboard's
+    // CheckBlockedUser to bounce them: LoginRequest::authenticate passes
+    // 'block' => 'no' to Auth::attempt, and this path should match it
+    // instead of handing a disabled account a valid session first.
+    $user = User::find($userId);
+    if (!$user || $user->block === 'yes') {
+        Log::warning('Mail Minted SSO: no usable LinkStack user for id ' . $userId);
         return redirect('/login')->with('error', 'Account not found on this LinkStack instance.');
     }
 
+    Auth::login($user);
     $request->session()->regenerate();
     return redirect('/dashboard');
 })->name('mailminted.sso');

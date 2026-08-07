@@ -29,7 +29,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
-Route::prefix('admin')->group(function () {
+// Dedicated throttle. These share the generic 60/min api bucket otherwise,
+// which is a lot of bearer-token guesses per minute per IP against an
+// endpoint that deletes a user plus all their links and uploads.
+// Provisioning is low-volume, so 10/min is generous for real traffic.
+Route::prefix('admin')->middleware('throttle:10,1')->group(function () {
 
     Route::post('/users', function (Request $request) {
         $expected = env('MAILMINTED_ADMIN_API_TOKEN');
