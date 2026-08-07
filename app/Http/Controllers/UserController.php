@@ -1115,7 +1115,14 @@ class UserController extends Controller
 
         $zipfile = $request->file('zip');
 
-        $theme = $request->theme;
+        // users.theme ends up inside an include() path and a Blade view
+        // name, so it has to name a theme that is actually installed.
+        // POST /studio/theme is reachable by every customer -- only the
+        // zip-upload branch below is admin-gated.
+        $theme = (string) $request->input('theme', '');
+        if (!mm_is_valid_theme($theme)) {
+            return Redirect('/studio/edit#appearance')->with('error', 'Unknown theme.');
+        }
         $message = "";
 
         // Switching themes clears appearance overrides — picking a

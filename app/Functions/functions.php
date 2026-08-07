@@ -489,6 +489,47 @@ if (!function_exists('mm_safe_href')) {
  * strip. url() itself stays allowed (custom button backgrounds); only
  * dangerous schemes inside it are removed.
  */
+/**
+ * The set of themes actually installed under themes/, plus the two values
+ * that mean "no theme".
+ *
+ * users.theme is interpolated straight into `include base_path('themes/'
+ * . $theme . '/config.php')` by linkstack/modules/theme.blade.php, and
+ * into @include() view names, so it must never be a caller-supplied path
+ * fragment. Every write to the column goes through mm_is_valid_theme().
+ */
+if (!function_exists('mm_installed_themes')) {
+  function mm_installed_themes(): array
+  {
+      $dirs = [];
+      foreach (scandir(base_path('themes')) ?: [] as $entry) {
+          if ($entry === '.' || $entry === '..') {
+              continue;
+          }
+          if (is_dir(base_path('themes/' . $entry))) {
+              $dirs[] = $entry;
+          }
+      }
+      return $dirs;
+  }
+}
+
+if (!function_exists('mm_is_valid_theme')) {
+  function mm_is_valid_theme($theme): bool
+  {
+      $theme = (string) $theme;
+      // '' and 'default' both mean "the built-in look" and write no path.
+      if ($theme === '' || $theme === 'default') {
+          return true;
+      }
+      // Reject anything that could escape themes/ before touching the disk.
+      if ($theme !== basename($theme) || $theme === '.' || $theme === '..') {
+          return false;
+      }
+      return in_array($theme, mm_installed_themes(), true);
+  }
+}
+
 if (!function_exists('mm_sanitize_block_css')) {
   function mm_sanitize_block_css($css): string
   {

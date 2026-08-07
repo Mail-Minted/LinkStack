@@ -1,9 +1,20 @@
 @php
 // Theme Config
+// basename() so a junk value in users.theme can never walk out of
+// themes/ and include arbitrary PHP. The write paths validate too
+// (mm_is_valid_theme); this is the backstop at the sink.
+if (!function_exists('mm_theme_slug')) {
+  function mm_theme_slug(){
+$slug = basename(trim((string) ($GLOBALS['themeName'] ?? '')));
+return ($slug === '.' || $slug === '..') ? '' : $slug;}
+}
+
 if (!function_exists('theme')) {
   function theme($key){
 $key = trim($key);
-$file = base_path('themes/' . $GLOBALS['themeName'] . '/config.php');
+$slug = mm_theme_slug();
+if ($slug === '') { return null; }
+$file = base_path('themes/' . $slug . '/config.php');
   if (file_exists($file)) {
     $config = include $file;
   if (isset($config[$key])) {
@@ -15,7 +26,7 @@ return null;}
 // Theme Custom Asset
 if (!function_exists('themeAsset')) {
 function themeAsset($path){
-$path = url('themes/' . $GLOBALS['themeName'] . '/extra/custom-assets/' . $path);
+$path = url('themes/' . mm_theme_slug() . '/extra/custom-assets/' . $path);
 return $path;}
 }
 

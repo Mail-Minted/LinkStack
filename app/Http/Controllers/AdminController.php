@@ -356,7 +356,12 @@ class AdminController extends Controller
     $littlelink_description = $request->littlelink_description;
     $role = $request->role;
     $customBackground = $request->file("background");
-    $theme = $request->theme;
+    // Same constraint as UserController::editTheme -- users.theme reaches
+    // an include() path, so it must name an installed theme.
+    $theme = (string) $request->input("theme", "");
+    if (!mm_is_valid_theme($theme)) {
+      return Redirect("/admin/edit-user/" . $id)->with("error", "Unknown theme.");
+    }
 
     if (User::where("id", $id)->get("role")->first()->role = !$role) {
       if ($role == "vip") {
@@ -455,6 +460,20 @@ class AdminController extends Controller
   //Save home message, logo and favicon
   public function editSite(request $request)
   {
+    // These two uploads had NO rules at all, unlike every other uploader
+    // in the app. The stored extension comes from UploadedFile::extension(),
+    // which guesses from content -- so HTML content yielded a .html file and
+    // SVG content a .svg, written into assets/linkstack/images/ and served
+    // straight off disk as same-origin markup, bypassing the CSP and nosniff
+    // headers that only apply to responses Laravel renders.
+    $request->validate([
+      "message" => ["nullable", "string"],
+      "image"   => ["nullable", "image", "mimes:jpeg,jpg,png,webp", "max:2048"],
+      // 'file' not 'image' for the icon: Laravel's image rule rejects ICO,
+      // which is a legitimate favicon format. Matches editFavicon.
+      "icon"    => ["nullable", "file", "mimes:jpeg,jpg,png,webp,ico", "max:1024"],
+    ]);
+
     $message = $request->message;
     $logo = $request->file("image");
     $icon = $request->file("icon");
