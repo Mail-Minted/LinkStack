@@ -87,7 +87,8 @@ class UserFaviconTest extends TestCase
         $stored = findFavicon($user->id);
         $this->assertNotSame('error.error', $stored);
 
-        $this->actingAs($user)->get('/studio/rem-favicon')->assertRedirect();
+        // POST: removal is state-changing, so it must carry CSRF.
+        $this->actingAs($user)->post('/studio/rem-favicon')->assertRedirect();
 
         $this->assertSame('error.error', findFavicon($user->id));
 

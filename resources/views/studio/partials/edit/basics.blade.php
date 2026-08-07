@@ -245,7 +245,7 @@
   @if($userFavicon !== 'error.error')
     <div class="mb-3 d-flex align-items-center" style="gap:12px">
       <img src="{{ asset('assets/img/favicon-img/'.$userFavicon) }}" alt="Current browser tab icon" width="32" height="32" style="border-radius:6px">
-      <a class="btn btn-sm btn-outline-danger" href="{{ route('removeFavicon') }}">Remove</a>
+      <x-post-action :action="route('removeFavicon')" class="btn btn-sm btn-outline-danger" data-confirm="Remove your custom favicon?">Remove</x-post-action>
     </div>
   @endif
   <form action="{{ route('editFavicon') }}" method="post" enctype="multipart/form-data" class="d-flex align-items-center" style="gap:12px">

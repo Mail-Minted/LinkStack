@@ -3,6 +3,13 @@
 /public/hot
 /public/storage
 /storage/*.key
+
+# Installer state markers. These MUST never be tracked: routes/web.php
+# registers the unauthenticated installer (including /skip, which seeds a
+# well-known admin and logs the caller in) while either is present, so a
+# tracked marker means every fresh clone ships an open admin backdoor.
+/INSTALLING
+/INSTALLERLOCK
 /vendor
 .env
 .env.backup
@@ -22,6 +29,11 @@ npm-debug.log
 yarn-error.log
 _ide_*
 
+# Claude Code working directory. Holds git worktrees, and those worktrees
+# carry their own .env — i.e. a full copy of the live secrets. This repo is
+# public, so a stray `git add -A` here would publish them.
+/.claude
+
 # Internal reference docs — kept locally, not published to the public
 # AGPL source repo (plans, kickoff prompts, pre-deploy audit).
 /CUSTOM-FEATURES.md
@@ -34,3 +46,4 @@ _ide_*
 /UI-PASS-PLAN.md
 /CSP-HARDENING-PLAN.md
 /DRAFT-PUBLISH-PLAN.md
+/SECURITY-ASSESSMENT.md

@@ -73,13 +73,27 @@
                 Pick a photo, then drag inside the circle to reposition. JPG, PNG, or WebP &mdash; up to 2&nbsp;MB.
               </small>
               @if(file_exists(base_path(findAvatar(Auth::id()))))
-                <a href="{{ route('delProfilePicture') }}" class="small text-danger mt-1 d-inline-block" data-confirm="Delete your profile photo?">
+                {{-- Submits the form declared after this one closes: the
+                     delete is a POST now (CSRF), and a <form> cannot be
+                     nested inside the photo-upload <form> above. Same
+                     shape as appearance-reset-form further down. --}}
+                <button type="submit" form="delete-photo-form"
+                        class="mm-post-bare small text-danger mt-1 d-inline-block"
+                        data-confirm="Delete your profile photo?">
                   <i class="bi bi-trash"></i> Remove current photo
-                </a>
+                </button>
               @endif
             </div>
           </div>
         </form>
+
+        @if(file_exists(base_path(findAvatar(Auth::id()))))
+          {{-- Target of the "Remove current photo" button above. Lives out
+               here because forms cannot nest. --}}
+          <form id="delete-photo-form" action="{{ route('delProfilePicture') }}" method="post" style="display:none">
+            @csrf
+          </form>
+        @endif
 
         {{-- Photo shape picker — same subject as the photo
              upload above, so it lives in this tab. Its

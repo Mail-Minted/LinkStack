@@ -130,8 +130,10 @@
                 </div>
     
                 <div class="d-flex flex-column flex-md-row align-items-md-center">
-                    <button class="btn btn-primary me-md-3 mb-3 mb-md-0"><a href="{{ route('deleteLink', $linkID ) }}" target="_blank" class="text-white confirmation">{{__('messages.Delete')}} {{strtolower(__('messages.Link'))}}</a></button>
-                    <button class="btn btn-danger me-md-3 mb-3 mb-md-0"><a href="{{ route('deleteUser', ['id' => $id]) }}" target="_blank" class="text-white confirmation">{{__('messages.Delete')}} {{strtolower(__('messages.User'))}}</a></button>
+                    {{-- Were <a> links nested inside <button>, which is invalid
+                         markup and made both destructive actions plain GETs. --}}
+                    <x-post-action :action="route('deleteLink', $linkID)" class="btn btn-primary me-md-3 mb-3 mb-md-0 text-white confirmation">{{__('messages.Delete')}} {{strtolower(__('messages.Link'))}}</x-post-action>
+                    <x-post-action :action="route('deleteUser', ['id' => $id])" class="btn btn-danger me-md-3 mb-3 mb-md-0 text-white confirmation">{{__('messages.Delete')}} {{strtolower(__('messages.User'))}}</x-post-action>
                   </div>
 
                   <script nonce="{{ csp_nonce() }}" type="text/javascript">

@@ -1,9 +1,36 @@
+# Directory listings must never be served. This lives at top level on
+# purpose: the -Indexes below is nested inside <IfModule mod_negotiation.c>,
+# so on a server without that module it silently did nothing and /backups/
+# and /storage/logs/ were listable.
+Options -Indexes
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
     </IfModule>
 
     RewriteEngine On
+
+    # LinkStack serves from the app root (shared-hosting layout), so the
+    # framework's own directories sit inside the document root. The front
+    # controller below only runs for paths that DON'T resolve to a real
+    # file, which means Apache serves anything that does exist straight
+    # off disk. Without these denials the following are fetchable over
+    # HTTP by anyone:
+    #
+    #   storage/framework/sessions/<id>  session payloads, unencrypted,
+    #                                    filename == the session id
+    #   storage/logs/laravel.log         stack traces, SQL, user emails
+    #   backups/env_<timestamp>          verbatim copies of .env
+    #
+    # Patterns match relative to this directory, so subdirectory installs
+    # are covered too.
+    #
+    # resources/ and vendor/ are deliberately NOT denied: the admin panel
+    # loads resources/ckeditor/ckeditor.js (panel/pages, panel/site) and
+    # vendor/livewire/livewire/dist/livewire.js (panel/users) over HTTP.
+    # assets/ and themes/ are public by design.
+    RewriteRule ^(storage|backups|database|bootstrap|config|routes|app|tests)(/|$) - [F,L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
@@ -30,6 +57,13 @@ Deny from all
     Deny from all
 </Files>
 <Files ~ "\.zip$">
+    Order allow,deny
+    Deny from all
+</Files>
+# Second layer for the log file, independent of mod_rewrite: if
+# mod_rewrite is ever absent the RewriteRule denials above vanish, and
+# storage/logs/laravel.log is the highest-value readable file left.
+<Files ~ "\.log$">
     Order allow,deny
     Deny from all
 </Files>

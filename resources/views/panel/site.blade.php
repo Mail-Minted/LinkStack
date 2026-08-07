@@ -21,13 +21,13 @@
                           <form action="{{ route('editSite') }}" enctype="multipart/form-data" method="post">
                           @csrf
                             <div class="form-group col-lg-8">
-                              <label>{{__('messages.Site logo')}}</label>@if(file_exists(base_path("assets/linkstack/images/").findFile('avatar')))<a title="Remove icon" class="hvr-grow p-1 text-danger" style="padding-left:5px;" href="{{ route('delAvatar') }}"><i class="bi bi-trash-fill"></i></a>@endif
+                              <label>{{__('messages.Site logo')}}</label>@if(file_exists(base_path("assets/linkstack/images/").findFile('avatar')))<x-post-action :action="route('delAvatar')" title="Remove icon" class="mm-post-bare hvr-grow p-1 text-danger" style="padding-left:5px;" data-confirm="Remove the site logo?"><i class="bi bi-trash-fill"></i></x-post-action>@endif
                               <div class="mb-3">
                                 <input type="file" class="form-control form-control-lg" name="image" aria-label="Large file input example">
                             </div>
                             </div>
                             <div class="form-group col-lg-8">
-                              <label>{{__('messages.Favicon')}}</label>@if(file_exists(base_path("assets/linkstack/images/").findFile('favicon')))<a title="Remove icon" class="hvr-grow p-1 text-danger" style="padding-left:5px;" href="{{ route('delFavicon') }}"><i class="bi bi-trash-fill"></i></a>@endif
+                              <label>{{__('messages.Favicon')}}</label>@if(file_exists(base_path("assets/linkstack/images/").findFile('favicon')))<x-post-action :action="route('delFavicon')" title="Remove icon" class="mm-post-bare hvr-grow p-1 text-danger" style="padding-left:5px;" data-confirm="Remove the favicon?"><i class="bi bi-trash-fill"></i></x-post-action>@endif
                               <div class="mb-3">
                                 <input type="file" class="form-control form-control-lg" name="icon" aria-label="Large file input example">
                             </div><br>

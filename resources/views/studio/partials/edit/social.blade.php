@@ -74,10 +74,10 @@
              data-link-id="{{ $icon->id }}"
              title="{{ $label }}: {{ $icon->link }}">
           <i class="fa-brands fa-{{ $icon->title }} chip-glyph"></i>
-          <a href="{{ route('deleteLink', $icon->id) }}"
+          <x-post-action :action="route('deleteLink', $icon->id)"
              class="chip-remove"
              title="Remove"
-             data-confirm="Remove this social icon?">&times;</a>
+             data-confirm="Remove this social icon?">&times;</x-post-action>
         </div>
       @endforeach
     </div>

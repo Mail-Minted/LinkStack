@@ -22,6 +22,15 @@ class AppearanceThemeTest extends TestCase
     use RefreshDatabase;
 
     /**
+     * Real installed themes. These used to be invented names ('themeA' /
+     * 'themeB'), which stopped working once editTheme started rejecting
+     * themes that aren't on disk -- users.theme reaches an include() path,
+     * so it has to name a real directory.
+     */
+    private const THEME_A = 'accountant';
+    private const THEME_B = 'architect';
+
+    /**
      * Explicit high ids so file operations in the REAL
      * assets/img/background-img directory can never touch a real
      * account's background (dev accounts are 1 and 241395).
@@ -81,14 +90,14 @@ class AppearanceThemeTest extends TestCase
 
     public function test_theme_switch_clears_overrides_and_background_file(): void
     {
-        $user = $this->makeUserWithBackground(['theme' => 'themeA']);
+        $user = $this->makeUserWithBackground(['theme' => self::THEME_A]);
 
         $this->actingAs($user)
-            ->post('/studio/theme', ['theme' => 'themeB'])
+            ->post('/studio/theme', ['theme' => self::THEME_B])
             ->assertRedirect('/studio/edit#appearance');
 
         $user->refresh();
-        $this->assertSame('themeB', $user->theme);
+        $this->assertSame(self::THEME_B, $user->theme);
         $this->assertNull($user->theme_customization, 'switching themes must clear appearance overrides');
         $this->assertCount(0, $this->backgroundFiles($user->id), 'switching themes must delete the uploaded background file');
     }
@@ -98,23 +107,23 @@ class AppearanceThemeTest extends TestCase
         // The stock admin uploader wrote {id}.{ext} (no underscore) —
         // those must not survive a switch either, or the old photo
         // keeps rendering (the bio page checks file existence).
-        $user = $this->makeUser(['id' => $this->nextId++, 'theme' => 'themeA']);
+        $user = $this->makeUser(['id' => $this->nextId++, 'theme' => self::THEME_A]);
         $dir = base_path('assets/img/background-img');
         if (!is_dir($dir)) {
             @mkdir($dir, 0755, true);
         }
         file_put_contents($dir . '/' . $user->id . '.png', 'legacy-bytes');
 
-        $this->actingAs($user)->post('/studio/theme', ['theme' => 'themeB']);
+        $this->actingAs($user)->post('/studio/theme', ['theme' => self::THEME_B]);
 
         $this->assertCount(0, $this->allBackgroundFiles($user->id), 'legacy-named background must be deleted on switch');
     }
 
     public function test_repicking_the_same_theme_keeps_overrides_and_file(): void
     {
-        $user = $this->makeUserWithBackground(['theme' => 'themeA']);
+        $user = $this->makeUserWithBackground(['theme' => self::THEME_A]);
 
-        $this->actingAs($user)->post('/studio/theme', ['theme' => 'themeA']);
+        $this->actingAs($user)->post('/studio/theme', ['theme' => self::THEME_A]);
 
         $user->refresh();
         $this->assertNotNull($user->theme_customization, 're-picking the current theme must not wipe overrides');
@@ -137,12 +146,12 @@ class AppearanceThemeTest extends TestCase
     public function test_theme_switch_marks_published_snapshot_dirty(): void
     {
         $user = $this->makeUserWithBackground([
-            'theme'                    => 'themeA',
+            'theme'                    => self::THEME_A,
             'published_snapshot'       => json_encode(['user' => [], 'blocks' => []]),
             'has_unpublished_changes'  => false,
         ]);
 
-        $this->actingAs($user)->post('/studio/theme', ['theme' => 'themeB']);
+        $this->actingAs($user)->post('/studio/theme', ['theme' => self::THEME_B]);
 
         $user->refresh();
         $this->assertTrue((bool) $user->has_unpublished_changes, 'background removal must flag the published page as stale');

@@ -8,6 +8,8 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 use GeoSot\EnvEditor\Controllers\EnvController;
 use GeoSot\EnvEditor\Exceptions\EnvException;
@@ -356,7 +358,12 @@ class AdminController extends Controller
     $littlelink_description = $request->littlelink_description;
     $role = $request->role;
     $customBackground = $request->file("background");
-    $theme = $request->theme;
+    // Same constraint as UserController::editTheme -- users.theme reaches
+    // an include() path, so it must name an installed theme.
+    $theme = (string) $request->input("theme", "");
+    if (!mm_is_valid_theme($theme)) {
+      return Redirect("/admin/edit-user/" . $id)->with("error", "Unknown theme.");
+    }
 
     if (User::where("id", $id)->get("role")->first()->role = !$role) {
       if ($role == "vip") {
@@ -455,6 +462,20 @@ class AdminController extends Controller
   //Save home message, logo and favicon
   public function editSite(request $request)
   {
+    // These two uploads had NO rules at all, unlike every other uploader
+    // in the app. The stored extension comes from UploadedFile::extension(),
+    // which guesses from content -- so HTML content yielded a .html file and
+    // SVG content a .svg, written into assets/linkstack/images/ and served
+    // straight off disk as same-origin markup, bypassing the CSP and nosniff
+    // headers that only apply to responses Laravel renders.
+    $request->validate([
+      "message" => ["nullable", "string"],
+      "image"   => ["nullable", "image", "mimes:jpeg,jpg,png,webp", "max:2048"],
+      // 'file' not 'image' for the icon: Laravel's image rule rejects ICO,
+      // which is a legitimate favicon format. Matches editFavicon.
+      "icon"    => ["nullable", "file", "mimes:jpeg,jpg,png,webp,ico", "max:1024"],
+    ]);
+
     $message = $request->message;
     $logo = $request->file("image");
     $icon = $request->file("icon");
@@ -678,17 +699,21 @@ class AdminController extends Controller
               preg_match($pattern, $text, $matches, PREG_OFFSET_CAPTURE);
               $sourceURL = substr($matches[0][0], 13);
 
-              $replaced = str_replace(
-                "https://github.com/",
-                "https://raw.githubusercontent.com/",
-                trim($sourceURL),
-              );
-              $replaced = $replaced . "/main/readme.md";
+              // readme.md ships with the theme, so this URL is untrusted
+              // input. mm_theme_source_repo() parses the host rather than
+              // substring-matching it, and only accepts an https github.com
+              // owner/repo URL.
+              $repoUrl = mm_theme_source_repo($sourceURL);
 
-              if (strpos($sourceURL, "github.com")) {
-                ini_set("user_agent", "Mozilla/4.0 (compatible; MSIE 6.0)");
+              if ($repoUrl !== null) {
+                $replaced = str_replace(
+                  "https://github.com/",
+                  "https://raw.githubusercontent.com/",
+                  $repoUrl,
+                ) . "/main/readme.md";
+
                 try {
-                  $textGit = file_get_contents($replaced);
+                  $textGit = Http::timeout(15)->get($replaced)->body();
                   $patternGit = "/Theme Version:.*/";
                   preg_match(
                     $patternGit,
@@ -699,29 +724,55 @@ class AdminController extends Controller
                   $sourceURLGit = substr($matches[0][0], 15);
                   $Vgitt = "v" . $sourceURLGit;
                   $verNrv = "v" . $verNr;
-                } catch (Exception $ex) {
+                } catch (\Throwable $ex) {
                   $themeVe = "error";
                   $Vgitt = null;
                   $verNrv = null;
                 }
 
-                if (trim($Vgitt) > trim($verNrv)) {
-                  $fileUrl =
-                    trim($sourceURL) .
-                    "/archive/refs/tags/" .
-                    trim($Vgitt) .
-                    ".zip";
+                // version_compare, not a string comparison: "v9" > "v10"
+                // lexically, so a 10.x release never looked like an update.
+                // The tag also has to be a plausible version so it can't
+                // steer the archive path.
+                $remoteTag = trim((string) $Vgitt);
+                $localTag = trim((string) $verNrv);
+                $tagIsSane = (bool) preg_match('/^v[0-9][0-9A-Za-z.\-_]*$/', $remoteTag);
 
-                  file_put_contents(
-                    base_path("themes/theme.zip"),
-                    fopen($fileUrl, "r"),
-                  );
+                if (
+                  $tagIsSane &&
+                  version_compare(ltrim($remoteTag, "v"), ltrim($localTag, "v"), ">")
+                ) {
+                  $fileUrl = $repoUrl . "/archive/refs/tags/" . $remoteTag . ".zip";
+                  $zipPath = base_path("themes/theme.zip");
+
+                  $download = Http::timeout(60)->get($fileUrl);
+                  if (!$download->successful()) {
+                    continue;
+                  }
+                  file_put_contents($zipPath, $download->body());
 
                   $zip = new ZipArchive();
-                  $zip->open(base_path() . "/themes/theme.zip");
+                  if ($zip->open($zipPath) !== true) {
+                    @unlink($zipPath);
+                    continue;
+                  }
+
+                  // Zip Slip guard. Without it a crafted archive could
+                  // write outside themes/ -- into a servable or autoloaded
+                  // path -- which is arbitrary code execution.
+                  if (!mm_zip_entries_are_safe($zip)) {
+                    $zip->close();
+                    @unlink($zipPath);
+                    Log::warning('Theme update rejected: unsafe archive paths', [
+                      'theme' => $entry,
+                      'url'   => $fileUrl,
+                    ]);
+                    continue;
+                  }
+
                   $zip->extractTo(base_path("themes"));
                   $zip->close();
-                  unlink(base_path() . "/themes/theme.zip");
+                  unlink($zipPath);
 
                   $folder = base_path("themes");
                   $regex = "/[0-9.-]/";

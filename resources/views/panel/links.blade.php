@@ -32,7 +32,7 @@
                             <td title="{{ $link->link }}"><a style="color:#3985ff;text-decoration:underline;" href="{{ $link->link }}" target="_blank">{{ Str::limit($link->link, 50) }}</a></td>
                             <td title="{{ $link->title }}">{{ Str::limit($link->title, 30) }}</td>
                             <td class="text-right">{{ $link->click_number }}</td>
-                            <td><a href="{{ route('deleteLinkUser', $link->id ) }}" class="text-danger">{{__('messages.Delete')}}</a></td>
+                            <td><x-post-action :action="route('deleteLinkUser', $link->id)" class="mm-post-bare text-danger" data-confirm="{{ __('messages.Delete') }}?">{{__('messages.Delete')}}</x-post-action></td>
                           </tr>
                           @endforeach
                         </tbody>

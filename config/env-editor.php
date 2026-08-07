@@ -9,8 +9,14 @@ return [
     'paths' => [
         // .env file directory
         'env' => base_path(),
-        //backup files directory
-        'backupDirectory' => 'backups',
+        // Backup files directory. These are verbatim copies of .env, so
+        // they must not sit in the document root (which, in LinkStack's
+        // shared-hosting layout, is the app root -- so the old 'backups'
+        // was web-reachable at /backups/env_<timestamp>, matching none of
+        // the .htaccess deny rules). Absolute, because the package returns
+        // this value unmodified and a relative path resolves against the
+        // process CWD rather than the app root.
+        'backupDirectory' => storage_path('app/env-backups'),
     ],
     // .env file name
     'envFileName' => '.env',

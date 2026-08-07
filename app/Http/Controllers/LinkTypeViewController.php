@@ -7,20 +7,40 @@ use App\Models\Link;
 use App\Models\Button;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Auth;
 
 class LinkTypeViewController extends Controller
 {
     public function getParamForm($typename, $linkId = 0)
     {
+        // $typename picks the Blade template rendered at the bottom of this
+        // method, so it has to resolve to a real block rather than to an
+        // arbitrary caller-supplied view path.
+        if (!LinkType::existsByTypename($typename)) {
+            abort(404);
+        }
+
         $data = [
             'title' => '',
             'link' => '',
             'button_id' => 0,
             'buttons' => [],
         ];
-    
+
         if ($linkId) {
+            // type_params holds per-block secrets — the newsletter block
+            // keeps its Mailchimp API key there, and form.blade.php renders
+            // it straight back into an input. Scope the lookup to the caller
+            // the way the link-id middleware does on the sibling routes.
             $link = Link::find($linkId);
+
+            if (!$link) {
+                abort(404);
+            }
+            if ($link->user_id != Auth::id()) {
+                abort(403);
+            }
+
             $data['title'] = $link->title;
             $data['link'] = $link->link;
             if (Route::currentRouteName() != 'showButtons') {

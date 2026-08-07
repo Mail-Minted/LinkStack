@@ -39,7 +39,32 @@ if(file_exists(base_path('storage/app/ISINSTALLED'))){
  }
 
  // Installer
-if(file_exists(base_path('INSTALLING')) or file_exists(base_path('INSTALLERLOCK'))){
+//
+// The installer routes are unauthenticated by nature, so they must be
+// registered ONLY while the app is genuinely uninstalled. A marker file on
+// its own was not a safe test for that:
+//
+//   - INSTALLING was tracked in git, so every fresh clone / CI checkout
+//     landed with the installer live (including the /skip route below).
+//   - InstallerController::createAdmin CREATES INSTALLERLOCK and only
+//     options() removes it, so an install abandoned mid-wizard left the
+//     installer reachable permanently.
+//
+// "No users in the users table" is the condition that actually means
+// uninstalled, so it is the one that gates registration. A database we
+// can't query at all is the one state the installer genuinely needs to
+// serve, so that counts as uninstalled too.
+$installerMarker = file_exists(base_path('INSTALLING')) || file_exists(base_path('INSTALLERLOCK'));
+$installerActive = false;
+if ($installerMarker && !file_exists(base_path('storage/app/ISINSTALLED'))) {
+    try {
+        $installerActive = DB::table('users')->count() === 0;
+    } catch (\Throwable $e) {
+        $installerActive = true;
+    }
+}
+
+if ($installerActive) {
 
   Route::get('/', [InstallerController::class, 'showInstaller'])->name('showInstaller');
   Route::post('/create-admin', [InstallerController::class, 'createAdmin'])->name('createAdmin');
@@ -47,7 +72,22 @@ if(file_exists(base_path('INSTALLING')) or file_exists(base_path('INSTALLERLOCK'
   Route::post('/mysql', [InstallerController::class, 'mysql'])->name('mysql');
   Route::post('/options', [InstallerController::class, 'options'])->name('options');
   Route::get('/mysql-test', [InstallerController::class, 'mysqlTest'])->name('mysqlTest');
-  Route::get('/skip', function () {Artisan::call('db:seed', ['--class' => 'AdminSeeder',]); Auth::login(User::where('name', 'admin')->first()); return redirect(url('dashboard'));});
+  // Seeds AdminSeeder's well-known admin (admin@admin.com / 12345678) and
+  // logs the caller straight in, with no credentials. Only ever valid on a
+  // genuinely empty install — re-check at request time, not just at
+  // registration time, so a cached route file can't keep it alive.
+  Route::get('/skip', function () {
+    try {
+      $empty = DB::table('users')->count() === 0;
+    } catch (\Throwable $e) {
+      $empty = false;
+    }
+    abort_unless($empty, 404);
+
+    Artisan::call('db:seed', ['--class' => 'AdminSeeder']);
+    Auth::login(User::where('name', 'admin')->firstOrFail());
+    return redirect(url('dashboard'));
+  });
   Route::post('/editConfigInstaller', [InstallerController::class, 'editConfigInstaller'])->name('editConfigInstaller');
 
   Route::get('{any}', function() {
@@ -190,8 +230,11 @@ Route::get('/studio/theme', function () {
         : redirect('/studio/edit#appearance');
 })->name('showTheme');
 Route::post('/studio/theme', [UserController::class, 'editTheme'])->name('editTheme');
-Route::get('/deleteLink/{id}', [UserController::class, 'deleteLink'])->name('deleteLink')->middleware('link-id');
-Route::get('/upLink/{up}/{id}', [UserController::class, 'upLink'])->name('upLink')->middleware('link-id');
+// State-changing routes are POST so VerifyCsrfToken actually covers them;
+// as GETs they had no CSRF protection, and SameSite=lax still sends the
+// session cookie on a top-level navigation. Call sites use <x-post-action>.
+Route::post('/deleteLink/{id}', [UserController::class, 'deleteLink'])->name('deleteLink')->middleware('link-id');
+Route::post('/upLink/{up}/{id}', [UserController::class, 'upLink'])->name('upLink')->middleware('link-id');
 Route::post('/studio/edit-link/{id}', [UserController::class, 'editLink'])->name('editLink')->middleware('link-id');
 // Legacy /studio/button-editor routes removed: the per-block CSS editor
 // was replaced by the Appearance section of the unified /studio/edit
@@ -200,7 +243,7 @@ Route::get('/studio/page', fn() => redirect('/studio/edit#basics'))->name('showP
 Route::get('/studio/no_page_name', fn() => redirect('/studio/edit#basics'));
 Route::post('/studio/page', [UserController::class, 'editPage'])->name('editPage');
 Route::post('/studio/background', [UserController::class, 'themeBackground'])->name('themeBackground');
-Route::get('/studio/rem-background', [UserController::class, 'removeBackground'])->name('removeBackground');
+Route::post('/studio/rem-background', [UserController::class, 'removeBackground'])->name('removeBackground');
 Route::get('/studio/profile', [UserController::class, 'showProfile'])->name('showProfile');
 Route::post('/studio/profile', [UserController::class, 'editProfile'])->name('editProfile');
 Route::post('/studio/profile/analytics', [UserController::class, 'editAnalytics'])->name('editAnalytics');
@@ -222,12 +265,12 @@ Route::get('/stripe/connect/callback', [StripeConnectController::class, 'callbac
 Route::get('/stripe/status', [StripeConnectController::class, 'status'])->name('stripe.status');
 Route::post('/stripe/disconnect', [StripeConnectController::class, 'disconnect'])->name('stripe.disconnect');
 Route::post('/edit-icons', [UserController::class, 'editIcons'])->name('editIcons');
-Route::get('/clearIcon/{id}', [UserController::class, 'clearIcon'])->name('clearIcon')->middleware('link-id');
-Route::get('/studio/page/delprofilepicture', [UserController::class, 'delProfilePicture'])->name('delProfilePicture');
+Route::post('/clearIcon/{id}', [UserController::class, 'clearIcon'])->name('clearIcon')->middleware('link-id');
+Route::post('/studio/page/delprofilepicture', [UserController::class, 'delProfilePicture'])->name('delProfilePicture');
 Route::post('/studio/profile-picture', [UserController::class, 'editProfilePicture'])->name('editProfilePicture');
 // Custom browser-tab icon (favicon) for the user's public page — white-label branding.
 Route::post('/studio/favicon', [UserController::class, 'editFavicon'])->name('editFavicon');
-Route::get('/studio/rem-favicon', [UserController::class, 'removeFavicon'])->name('removeFavicon');
+Route::post('/studio/rem-favicon', [UserController::class, 'removeFavicon'])->name('removeFavicon');
 // Self-serve /studio/delete-user removed — see UserController note.
 // Account deletion is admin/deprovision-only.
 Route::post('/auth-as', [AdminController::class, 'authAs'])->name('authAs');
@@ -244,7 +287,9 @@ if(env('ALLOW_USER_EXPORT') != false){
 if(env('ALLOW_USER_IMPORT') != false){
   Route::post('/import-data', [UserController::class, 'importData'])->name('importData');
 }
-Route::get('/studio/linkparamform_part/{typeid}/{linkid}', [LinkTypeViewController::class, 'getParamForm'])->name('linkparamform.part');
+Route::get('/studio/linkparamform_part/{typeid}/{linkid}', [LinkTypeViewController::class, 'getParamForm'])
+  ->name('linkparamform.part')
+  ->where(['typeid' => '[a-zA-Z0-9_-]+', 'linkid' => '[0-9]+']);
 });
 });
 }
@@ -271,14 +316,14 @@ Route::group([
     Route::get('/panel/index', function(){return redirect(url('dashboard'));});
     Route::get('/admin/users', [AdminController::class, 'users'])->name('showUsers');
     Route::get('/admin/links/{id}', [AdminController::class, 'showLinksUser'])->name('showLinksUser');
-    Route::get('/admin/deleteLink/{id}', [AdminController::class, 'deleteLinkUser'])->name('deleteLinkUser');
-    Route::get('/admin/users/block/{block}/{id}', [AdminController::class, 'blockUser'])->name('blockUser');
-    Route::get('/admin/users/verify/{verify}/{id}', [AdminController::class, 'verifyCheckUser'])->name('verifyCheckUser');
-    Route::get('/admin/users/verify-mail/{verify}/{id}', [AdminController::class, 'verifyUser'])->name('verifyUser');
+    Route::post('/admin/deleteLink/{id}', [AdminController::class, 'deleteLinkUser'])->name('deleteLinkUser');
+    Route::post('/admin/users/block/{block}/{id}', [AdminController::class, 'blockUser'])->name('blockUser');
+    Route::post('/admin/users/verify/{verify}/{id}', [AdminController::class, 'verifyCheckUser'])->name('verifyCheckUser');
+    Route::post('/admin/users/verify-mail/{verify}/{id}', [AdminController::class, 'verifyUser'])->name('verifyUser');
     Route::get('/admin/edit-user/{id}', [AdminController::class, 'showUser'])->name('showUser');
     Route::post('/admin/edit-user/{id}', [AdminController::class, 'editUser'])->name('editUser');
     Route::get('/admin/new-user', [AdminController::class, 'createNewUser'])->name('createNewUser')->middleware('max.users');
-    Route::get('/admin/delete-user/{id}', [AdminController::class, 'deleteUser'])->name('deleteUser');
+    Route::post('/admin/delete-user/{id}', [AdminController::class, 'deleteUser'])->name('deleteUser');
     Route::post('/admin/delete-table-user/{id}', [AdminController::class, 'deleteTableUser'])->name('deleteTableUser');
     Route::get('/admin/pages', [AdminController::class, 'showSitePage'])->name('showSitePage');
     Route::post('/admin/pages', [AdminController::class, 'editSitePage'])->name('editSitePage');
@@ -288,17 +333,19 @@ Route::group([
     Route::post('/admin/env', [AdminController::class, 'editENV'])->name('editENV');
     Route::get('/admin/site', [AdminController::class, 'showSite'])->name('showSite');
     Route::post('/admin/site', [AdminController::class, 'editSite'])->name('editSite');
-    Route::get('/admin/site/delavatar', [AdminController::class, 'delAvatar'])->name('delAvatar');
-    Route::get('/admin/site/delfavicon', [AdminController::class, 'delFavicon'])->name('delFavicon');
+    Route::post('/admin/site/delavatar', [AdminController::class, 'delAvatar'])->name('delAvatar');
+    Route::post('/admin/site/delfavicon', [AdminController::class, 'delFavicon'])->name('delFavicon');
     Route::get('/admin/phpinfo', [AdminController::class, 'phpinfo'])->name('phpinfo');
     Route::get('/admin/backups', [AdminController::class, 'showBackups'])->name('showBackups');
     Route::post('/admin/theme', [AdminController::class, 'deleteTheme'])->name('deleteTheme');
     Route::get('/admin/theme', [AdminController::class, 'showThemes'])->name('showThemes');
-    Route::get('/update/theme', [AdminController::class, 'updateThemes'])->name('updateThemes');
+    // POST: this downloads and extracts archives, so it must not be
+    // triggerable by an admin merely loading a URL (<img src=...>).
+    Route::post('/update/theme', [AdminController::class, 'updateThemes'])->name('updateThemes');
     Route::get('/admin/config', [AdminController::class, 'showConfig'])->name('showConfig');
     Route::post('/admin/config', [AdminController::class, 'editConfig'])->name('editConfig');
     Route::get('/send-test-email', [AdminController::class, 'SendTestMail'])->name('SendTestMail');
-    Route::get('/auth-as/{id}', [AdminController::class, 'authAsID'])->name('authAsID');
+    Route::post('/auth-as/{id}', [AdminController::class, 'authAsID'])->name('authAsID');
     Route::get('/theme-updater', function () {return view('studio/theme-updater', []);});
     Route::get('/update', function () {return view('update', []);});
     Route::get('/backup', function () {return view('backup', []);});
