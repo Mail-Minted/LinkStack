@@ -20,12 +20,14 @@ class ImpersonationBannerTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * Put the pair into the state Impersonate::handle expects: an admin
-     * row carrying auth_as, logged in as that admin.
+     * Start an impersonation through the real endpoint. Leaves the test
+     * session authenticated as the victim with impersonator_id set, which
+     * is what the middleware now reads -- so subsequent requests must NOT
+     * re-actingAs the admin or they would clobber that identity.
      */
     private function startImpersonating(User $admin, User $victim): void
     {
-        User::where('id', $admin->id)->update(['auth_as' => $victim->id]);
+        $this->actingAs($admin)->post('/auth-as/' . $victim->id);
     }
 
     public function test_display_name_is_escaped_in_the_banner(): void
@@ -40,7 +42,7 @@ class ImpersonationBannerTest extends TestCase
         ]);
         $this->startImpersonating($admin, $victim);
 
-        $response = $this->actingAs($admin)->get('/dashboard');
+        $response = $this->get('/dashboard');
 
         $response->assertDontSee('<script>alert(1)</script>', false);
         // ...and the escaped form is what actually renders.
@@ -57,7 +59,7 @@ class ImpersonationBannerTest extends TestCase
         ]);
         $this->startImpersonating($admin, $victim);
 
-        $response = $this->actingAs($admin)->get('/dashboard');
+        $response = $this->get('/dashboard');
 
         $response->assertDontSee('<img src=x onerror=alert(1)>', false);
     }
@@ -83,7 +85,7 @@ class ImpersonationBannerTest extends TestCase
         User::where('id', $victim->id)->update(['name' => 'Ann $1 O\\1Brien']);
         $this->startImpersonating($admin, $victim);
 
-        $response = $this->actingAs($admin)->get('/dashboard');
+        $response = $this->get('/dashboard');
 
         $response->assertSuccessful();
         $response->assertSee('Ann $1 O\\1Brien', false);
@@ -98,7 +100,7 @@ class ImpersonationBannerTest extends TestCase
         $victim = $this->makeUser();
         $this->startImpersonating($admin, $victim);
 
-        $content = $this->actingAs($admin)->get('/dashboard')->getContent();
+        $content = $this->get('/dashboard')->getContent();
 
         // script-src is enforced with no unsafe-inline on the studio /
         // dashboard area, so an un-nonced handler is dead markup.
