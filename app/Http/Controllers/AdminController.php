@@ -641,19 +641,25 @@ class AdminController extends Controller
       echo 'window.location.href = "../studio/theme";';
       echo "</script>";
     } else {
-      $folderName = base_path() . "/themes/" . $del;
+      // basename + containment check: $del went straight into the path, so
+      // "../app", "../storage" or ".." recursively deleted that tree
+      // instead of a theme. assets/img in particular is the only copy of
+      // every customer's uploads on the persistent volume.
+      $del = basename((string) $del);
+      $themesRoot = realpath(base_path("themes"));
+      $folderName = base_path("themes/" . $del);
+      $resolved = realpath($folderName);
 
-      function removeFolder($folderName)
-      {
-        if (File::exists($folderName)) {
-          File::deleteDirectory($folderName);
-          return true;
-        }
-
-        return false;
+      if (
+        $del === "" || $del === "." || $del === ".." ||
+        $themesRoot === false || $resolved === false ||
+        strpos($resolved, $themesRoot . DIRECTORY_SEPARATOR) !== 0 ||
+        !is_dir($resolved)
+      ) {
+        return Redirect("/admin/theme")->with("error", "Invalid theme.");
       }
 
-      removeFolder($folderName);
+      File::deleteDirectory($resolved);
 
       return Redirect("/admin/theme");
     }

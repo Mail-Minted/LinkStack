@@ -626,6 +626,46 @@ class UserController extends Controller
 
 
     //Count the number of clicks and redirect to link
+    /**
+     * The visibility gate the public bio render applies (see
+     * maybePublishedView), for the public routes that reach a block
+     * directly instead of through a page render.
+     *
+     * Those routes -- /going/{id} and /vcard/{id} -- looked the block up by
+     * id and served it, so a suspended account's data and blocks that only
+     * exist in an unpublished draft were both still reachable by anyone who
+     * knew the id (they appear in public page markup).
+     *
+     * Returns the link, or aborts 404. Semantics deliberately mirror
+     * maybePublishedView: suspended owner is hidden outright, a user who
+     * has never published still serves their live rows, and once published
+     * only what is in the snapshot is public.
+     */
+    private function publicLinkOrAbort($linkId): Link
+    {
+        $link = Link::find($linkId);
+        if (!$link) {
+            abort(404);
+        }
+
+        $owner = User::select('id', 'block', 'published_snapshot')->find($link->user_id);
+        if (!$owner || $owner->block === 'yes') {
+            abort(404);
+        }
+
+        if (!empty($owner->published_snapshot)) {
+            $snap = json_decode($owner->published_snapshot, true);
+            if (is_array($snap)) {
+                $publishedIds = collect($snap['blocks'] ?? [])->pluck('id')->all();
+                if (!in_array($link->id, $publishedIds)) {
+                    abort(404); // draft-only block
+                }
+            }
+        }
+
+        return $link;
+    }
+
     public function clickNumber(request $request)
     {
         $linkId = $request->id;
@@ -635,17 +675,11 @@ class UserController extends Controller
             return redirect(url('info/'.$linkWithoutPlus));
         }
     
-        $link = Link::find($linkId);
-
-        if (empty($link)) {
-            return abort(404);
-        }
-
-        $link = $link->link;
-
         if (empty($linkId)) {
             return abort(404);
         }
+
+        $link = $this->publicLinkOrAbort($linkId)->link;
 
         Link::where('id', $linkId)->increment('click_number', 1);
 
@@ -660,8 +694,14 @@ class UserController extends Controller
     {
         $linkId = $request->id;
 
-        // Find the link with the specified ID
-        $link = Link::findOrFail($linkId);
+        // Same visibility gate the page render applies, plus a type check:
+        // this reads $link->link as vCard JSON, so pointing it at any other
+        // block type produced undefined-index errors (a debug-page leak
+        // when APP_DEBUG is on) rather than a clean 404.
+        $link = $this->publicLinkOrAbort($linkId);
+        if ($link->type !== 'vcard') {
+            abort(404);
+        }
 
         $json = $link->link;
 
@@ -1240,7 +1280,17 @@ class UserController extends Controller
     {
         $userId = Auth::user()->id;
 
+        // Changing the e-mail or the password is account takeover if the
+        // caller is riding a stolen session: the address is what a reset
+        // link would target, and a new password is permanent ownership.
+        // Both now need the current password re-entered. The display name
+        // does not -- customers are SSO-provisioned with a random local
+        // password they never see, so gating everything behind it would
+        // lock them out of a harmless field.
+        $needsReauth = $request->filled('email') || $request->filled('password');
+
         $request->validate([
+            'current_password' => [Rule::requiredIf($needsReauth), 'current_password'],
             // Rendered into raw HTML in places Blade isn't escaping for us
             // (the impersonation bar), and the column is 255 wide. Keep it
             // plain text and bounded. Rule::unique ignores the caller's own
@@ -1250,18 +1300,32 @@ class UserController extends Controller
             'password' => 'sometimes|min:8',
         ]);
 
-        $name = trim(strip_tags((string) $request->name));
-        $email = $request->email;
-        $password = Hash::make($request->password);
-
-        if ($request->name != '') {
-            User::where('id', $userId)->update(['name' => $name]);
-        } elseif ($request->email != '') {
-            User::where('id', $userId)->update(['email' => $email]);
-        } elseif ($request->password != '') {
-            User::where('id', $userId)->update(['password' => $password]);
-            Auth::logout();
+        // Independent ifs, not elseif: the old chain silently discarded a
+        // password change whenever a name was submitted alongside it.
+        $changes = [];
+        if ($request->filled('name')) {
+            $changes['name'] = trim(strip_tags((string) $request->name));
         }
+        if ($request->filled('email')) {
+            $changes['email'] = $request->email;
+            // A changed address has not been proven to belong to the caller.
+            $changes['email_verified_at'] = null;
+        }
+        $passwordChanged = $request->filled('password');
+        if ($passwordChanged) {
+            $changes['password'] = Hash::make($request->password);
+        }
+
+        if ($changes) {
+            User::where('id', $userId)->update($changes);
+        }
+
+        if ($passwordChanged) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+
         return back();
     }
 
