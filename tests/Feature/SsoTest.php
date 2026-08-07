@@ -94,4 +94,62 @@ class SsoTest extends TestCase
         $this->get('/sso/mailminted')->assertRedirect('/login');
         $this->assertGuest();
     }
+
+    public function test_a_token_cannot_be_replayed(): void
+    {
+        // The token travels in the query string, so it lands in history,
+        // Referer headers and proxy logs. Within its TTL it used to be
+        // reusable by anyone who picked it up.
+        $user = $this->makeUser();
+        $token = $this->token(['sub' => (string) $user->id]);
+
+        $this->get('/sso/mailminted?token=' . $token)->assertRedirect('/dashboard');
+        $this->post('/logout');
+
+        $this->get('/sso/mailminted?token=' . $token)->assertRedirect('/login');
+        $this->assertGuest();
+    }
+
+    public function test_a_token_without_an_expiry_is_rejected(): void
+    {
+        // firebase/php-jwt only enforces exp when the claim is present, so
+        // an exp-less token never expired.
+        $user = $this->makeUser();
+        $payload = [
+            'iss' => 'mailminted',
+            'aud' => 'linkstack',
+            'sub' => (string) $user->id,
+            'iat' => time(),
+        ];
+        $token = \Firebase\JWT\JWT::encode($payload, env('MAILMINTED_SSO_SHARED_SECRET'), 'HS256');
+
+        $this->get('/sso/mailminted?token=' . $token)->assertRedirect('/login');
+        $this->assertGuest();
+    }
+
+    public function test_a_long_lived_token_is_rejected(): void
+    {
+        $user = $this->makeUser();
+        $token = $this->token([
+            'sub' => (string) $user->id,
+            'iat' => time(),
+            'exp' => time() + 86400,
+        ]);
+
+        $this->get('/sso/mailminted?token=' . $token)->assertRedirect('/login');
+        $this->assertGuest();
+    }
+
+    public function test_a_suspended_account_cannot_sso_in(): void
+    {
+        // Auth::attempt on the password path requires block => 'no'; this
+        // path handed a disabled account a valid session and relied on the
+        // dashboard middleware to bounce it.
+        $user = $this->makeUser();
+        \App\Models\User::where('id', $user->id)->update(['block' => 'yes']);
+
+        $this->get('/sso/mailminted?token=' . $this->token(['sub' => (string) $user->id]))
+            ->assertRedirect('/login');
+        $this->assertGuest();
+    }
 }

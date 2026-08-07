@@ -88,6 +88,23 @@ class ThemeAndUploadHardeningTest extends TestCase
         $this->get('/@' . $user->littlelink_name)->assertSuccessful();
     }
 
+    public function test_delete_theme_cannot_escape_the_themes_directory(): void
+    {
+        $admin = $this->makeUser(['role' => 'admin']);
+        $canary = base_path('storage/app/mm-deltheme-canary');
+        @mkdir($canary, 0755, true);
+
+        // deltheme went straight into the delete path, so "../storage/app/..."
+        // recursively removed that tree instead of a theme.
+        foreach (['../storage/app/mm-deltheme-canary', '..', '.', ''] as $evil) {
+            $this->actingAs($admin)->post('/admin/theme', ['deltheme' => $evil]);
+        }
+
+        $this->assertDirectoryExists($canary, 'traversal must not delete outside themes/');
+        $this->assertDirectoryExists(base_path('themes'), 'themes/ itself must survive');
+        @rmdir($canary);
+    }
+
     public function test_site_logo_upload_rejects_non_images(): void
     {
         $admin = $this->makeUser(['role' => 'admin']);

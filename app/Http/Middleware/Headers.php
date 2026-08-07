@@ -51,6 +51,19 @@ class Headers
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
+        // HSTS, but only on connections that already arrived over TLS --
+        // sending it over plain HTTP is meaningless, and sending it from a
+        // local HTTP dev server would pin the developer's browser to https
+        // for localhost. No preload directive: that is a one-way door
+        // (removal takes months), so it should be a deliberate choice
+        // rather than something a security pass turns on.
+        if ($request->secure()) {
+            $response->headers->set(
+                'Strict-Transport-Security',
+                'max-age=31536000; includeSubDomains'
+            );
+        }
+
         // Enforced baseline (every response): <base> injection + plugin
         // embedding. upgrade-insecure-requests when HTTPS is forced.
         $baseCsp = "base-uri 'self'; object-src 'none'";

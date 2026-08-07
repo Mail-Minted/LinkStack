@@ -172,7 +172,13 @@ return [
     // unset the flag follows the environment, so prod (HTTPS) gets a
     // Secure session cookie while local dev over HTTP still works.
     // Set SESSION_SECURE_COOKIE explicitly to override either way.
-    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
+    // NB: config('app.env'), not env('APP_ENV'). config/app.php defaults
+    // APP_ENV to 'production', but env() reads the raw value and returns
+    // null when it is unset -- and docker/entrypoint.sh writes a .env
+    // containing only APP_KEY when none exists. null === 'production' is
+    // false, so the fallback silently shipped an insecure cookie over
+    // HTTPS in exactly the deployment it was written to protect.
+    'secure' => env('SESSION_SECURE_COOKIE', config('app.env') === 'production'),
 
     /*
     |--------------------------------------------------------------------------
@@ -200,6 +206,9 @@ return [
     |
     */
 
-    'same_site' => 'lax',
+    // Hardcoded before, so SESSION_SAME_SITE had no effect. 'lax' stays the
+    // default because the SSO handoff arrives as a cross-site top-level
+    // navigation and 'strict' would drop the cookie on that first hop.
+    'same_site' => env('SESSION_SAME_SITE', 'lax'),
 
 ];

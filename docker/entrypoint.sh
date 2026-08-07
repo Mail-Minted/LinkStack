@@ -46,7 +46,13 @@ if [ ! -f "$DB" ]; then
     touch "$DB"
 fi
 
-chown -R www-data:www-data /var/www/html "$DATA"
+# Only the writable volume and the paths the app genuinely writes to. This
+# used to chown the whole of /var/www/html, handing every .php file --
+# vendor/, index.php, the routes -- to the user Apache serves as, so any
+# arbitrary-file-write bug escalated straight to persistent RCE. The
+# narrower chown after artisan runs (below) covers the rest; this one only
+# needs to let migrate create the SQLite file on the volume.
+chown -R www-data:www-data "$DATA"
 
 php artisan migrate --force
 if [ "$FRESH" = "1" ]; then
