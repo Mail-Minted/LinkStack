@@ -86,10 +86,13 @@ const VIEWPORT = { width: 390, height: 844 };
     // Playwright only encodes png/jpeg, so shoot PNG and hand it to
     // cwebp (brew install webp) for a much smaller file at the same
     // visual quality — these are photographic theme backgrounds.
+    // Downscale the 780px screenshot to 680: nothing on the marketing
+    // site displays these wider than ~340 CSS px, so 680 is exactly the
+    // 2x-retina size — Lighthouse flags anything larger as wasted bytes.
     const tmp = path.join(OUT_DIR, `.${slug}.png`);
     const out = path.join(OUT_DIR, `${slug}.webp`);
     await page.screenshot({ path: tmp });
-    execFileSync('cwebp', ['-quiet', '-q', '82', tmp, '-o', out]);
+    execFileSync('cwebp', ['-quiet', '-q', '82', '-resize', '680', '0', tmp, '-o', out]);
 
     // A second, small copy for the grids. The full render is ~45 KB and
     // 780px wide; the theme index shows all 47 at ~180px, so serving the
