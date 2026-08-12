@@ -61,6 +61,9 @@
        a horizontal flex-wrap row of brand glyphs.
        ============================================ --}}
   <h5 class="mt-4 mb-2"><i class="bi bi-arrows-move"></i> Order</h5>
+  {{-- Region swapped in place after an auto-save (script below) so a
+       newly typed URL grows a chip without a page reload. --}}
+  <div id="mm-social-order-region">
   @if($configuredIcons->isEmpty())
     <p class="text-muted small">No icons yet. Add a URL below to create your first.</p>
   @else
@@ -82,14 +85,15 @@
       @endforeach
     </div>
   @endif
+  </div>
 
   {{-- ============================================
        BOTTOM — URL editor for every brand
        ============================================ --}}
   <h5 class="mt-4 mb-2"><i class="bi bi-pencil"></i> URLs</h5>
-  <p class="text-muted small">Type a URL or handle for any brand. Empty fields stay hidden.</p>
+  <p class="text-muted small">Type a URL or handle for any brand. Changes save automatically; empty fields stay hidden.</p>
 
-  <form action="{{ route('editIcons') }}" enctype="multipart/form-data" method="post">
+  <form id="mm-social-form" action="{{ route('editIcons') }}" enctype="multipart/form-data" method="post">
     @csrf
     <div class="form-group col-lg-8">
       @foreach($brands as [$name, $label, $prefix, $placeholder])
@@ -122,10 +126,6 @@
           </div>
         </div>
       @endforeach
-
-      <button type="submit" class="mt-2 btn btn-primary">
-        <i class="bi bi-save"></i> {{__('messages.Save links')}}
-      </button>
     </div>
   </form>
 </section>
@@ -203,6 +203,10 @@
 @push('sidebar-scripts')
 <script nonce="{{ csp_nonce() }}">
     (function () {
+        // Re-callable: the auto-save handler below swaps the chip-row
+        // region's HTML after a save, which discards the old #sortable-icons
+        // element (and the Sortable bound to it) — so it re-runs this.
+        window.mmInitIconSortable = function () {
         var list = document.getElementById('sortable-icons');
         if (!list) return;
         if (typeof Sortable === 'undefined') {
@@ -242,6 +246,47 @@
                 });
             },
         });
+        };
+        window.mmInitIconSortable();
+    })();
+</script>
+<script nonce="{{ csp_nonce() }}">
+    (function () {
+        // Auto-save (instant-live model): every keystroke/change in the URL
+        // inputs debounces into mmAutoSaveForm — same pattern and save
+        // indicator as the Basics tab. The manual submit button is gone.
+        var form = document.getElementById('mm-social-form');
+        if (!form) return;
+
+        // After a save lands: the set of configured icons may have changed
+        // (a new URL grows a chip, a blanked one drops it), so re-render
+        // the chip row from the server and refresh the live preview.
+        function refreshAfterSave() {
+            fetch(window.location.pathname, {
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(function (r) { return r.text(); }).then(function (html) {
+                var doc = new DOMParser().parseFromString(html, 'text/html');
+                var fresh = doc.getElementById('mm-social-order-region');
+                var cur = document.getElementById('mm-social-order-region');
+                if (fresh && cur) {
+                    cur.innerHTML = fresh.innerHTML;
+                    if (window.mmInitIconSortable) window.mmInitIconSortable();
+                }
+            }).catch(function () { /* cosmetic refresh only — save already succeeded */ });
+
+            var pf = document.getElementById('appearance-preview-iframe');
+            if (pf) { try { pf.contentWindow.location.reload(); } catch (e) { pf.src += ''; } }
+        }
+
+        function autoSave() {
+            if (window.mmAutoSaveForm) window.mmAutoSaveForm(form, 800, refreshAfterSave);
+        }
+
+        form.addEventListener('input', autoSave);
+        form.addEventListener('change', autoSave);
+        // A stray Enter shouldn't reload the page; auto-save persists.
+        form.addEventListener('submit', function (e) { e.preventDefault(); autoSave(); });
     })();
 </script>
 @endpush

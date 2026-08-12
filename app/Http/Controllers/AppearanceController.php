@@ -136,7 +136,6 @@ class AppearanceController extends Controller
         // FILE, and the bio renderer keys off file existence, so it
         // must go too or the image survives the reset.
         self::removeBackgroundFileIfPresent($user->id);
-        \App\Services\PublishedPage::markImageDirty($user->id);
         // The theme gallery and the appearance controls share one pane
         // now — reset always lands on it.
         return redirect('/studio/edit#appearance')->with('success', 'Appearance reset to your theme.');
@@ -228,7 +227,6 @@ class AppearanceController extends Controller
         $user->theme_customization = json_encode($sparse, JSON_UNESCAPED_SLASHES);
         $user->save();
 
-        \App\Services\PublishedPage::markImageDirty($userId);
         return response()->json(['ok' => true, 'image_url' => $sparse['background']['image_url']]);
     }
 
@@ -250,7 +248,6 @@ class AppearanceController extends Controller
             $user->save();
         }
 
-        \App\Services\PublishedPage::markImageDirty(Auth::id());
         return response()->json(['ok' => true]);
     }
 

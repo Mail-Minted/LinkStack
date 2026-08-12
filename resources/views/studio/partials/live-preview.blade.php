@@ -27,7 +27,7 @@
     </div>
     <div class="appearance-preview-frame">
         <iframe id="appearance-preview-iframe"
-                src="{{ $previewUrl }}?preview=1"
+                src="{{ $previewUrl }}"
                 title="Live preview of your public page"
                 loading="lazy"></iframe>
     </div>

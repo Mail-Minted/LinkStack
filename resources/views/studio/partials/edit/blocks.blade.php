@@ -105,7 +105,10 @@ if(!function_exists('strp')){function strp($urlStrp){return str_replace(array('h
         <a class="btn btn-primary" href="{{ url('/studio/add-link') }}" data-mm-add>Add new Block</a>
     </h3>
 
-    <div>
+    {{-- Everything list-shaped lives in this region: after a block is
+         saved in the panel below, the region's HTML is re-fetched and
+         swapped in place (no page reload) — see the script at the bottom. --}}
+    <div id="mm-blocks-list-region">
         <div style="overflow-y: none;">
 
             <div id="links-table-body" data-page="{{request('page', 1)}}" data-per-page="{{$pagePage ? $pagePage : 0}}">
@@ -242,19 +245,20 @@ if(!function_exists('strp')){function strp($urlStrp){return str_replace(array('h
                 @endif
             </div>
 
-            <script nonce="{{ csp_nonce() }}" type="text/javascript">
-                const linksTableOrders = "{{ implode(' | ', $links->pluck('id')->toArray()) }}"
-                // Save endpoint for drag-to-reorder (main-dashboard.js).
-                window.mmSortLinkUrl = "{{ route('sortLinks') }}";
-            </script>
         </div>
 
         <ul class="pagination justify-content-center">
             {!! $links ?? ''->links() !!}
         </ul>
 
-        @if(count($links) > 3)<a class="btn btn-primary" href="{{ url('/studio/add-link') }}">Add new Block</a>@endif
+        @if(count($links) > 3)<a class="btn btn-primary" href="{{ url('/studio/add-link') }}" data-mm-add>Add new Block</a>@endif
     </div>
+
+    {{-- Outside the swapped region so it runs exactly once. --}}
+    <script nonce="{{ csp_nonce() }}" type="text/javascript">
+        // Save endpoint for drag-to-reorder (main-dashboard.js).
+        window.mmSortLinkUrl = "{{ route('sortLinks') }}";
+    </script>
 
     {{-- Inline editor panel. Add / Edit open the existing block editor
          in an embedded iframe right here (no page jump). The editor runs
@@ -306,16 +310,37 @@ if(!function_exists('strp')){function strp($urlStrp){return str_replace(array('h
     var closeBtn = document.getElementById('mm-block-editor-close');
     if (!panel || !frame) return;
 
-    // The frame starts on an editor URL (/studio/add-link or
-    // /studio/edit-link/{id}). After a save the editor redirects to
-    // /studio/edit#blocks — i.e. it leaves the editor path. We watch the
-    // frame's load events and, once it navigates away from an editor
-    // path, treat that as "saved/closed" and reload the parent so the
-    // block list and live preview refresh. ('Save and add more' redirects
-    // back to /studio/add-link, which is still an editor path, so the
-    // panel stays open for the next block.)
+    var ADD_URL = @json(url('/studio/add-link'));
+    var SAVE_PATH = '/studio/edit-link'; // route('addLink') — both add + edit post here
     var EDITOR_RE = /\/studio\/(add-link|edit-link)/;
     var opened = false;
+
+    // ---- In-place refresh (no page reload) -----------------------------
+    // The block editor saves via fetch (submit interception below), so
+    // after a save we re-fetch this page's HTML and swap the fresh list
+    // region in, then reload the live preview. The whole editor keeps its
+    // state (active tab, scroll, other tabs' unsent input).
+    function refreshBlocksList() {
+        return fetch(window.location.pathname, {
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) { return r.text(); }).then(function (html) {
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            var fresh = doc.getElementById('mm-blocks-list-region');
+            var cur = document.getElementById('mm-blocks-list-region');
+            if (fresh && cur) {
+                cur.innerHTML = fresh.innerHTML;
+                // The swap replaced #links-table-body, so rebind drag-to-
+                // reorder to the new element.
+                if (window.mmInitBlockSortable) window.mmInitBlockSortable();
+            }
+        }).catch(function () { /* list refresh is cosmetic; the save itself already succeeded */ });
+    }
+
+    function reloadPreview() {
+        var pf = document.getElementById('appearance-preview-iframe');
+        if (pf) { try { pf.contentWindow.location.reload(); } catch (e) { pf.src += ''; } }
+    }
 
     function openEditor(url, label) {
         title.innerHTML = '<i class="bi bi-pencil-square"></i> ' + label;
@@ -332,9 +357,8 @@ if(!function_exists('strp')){function strp($urlStrp){return str_replace(array('h
         frame.src = 'about:blank';
         opened = false;
         // Discard any live block-preview edits by reloading the main preview
-        // back to the saved draft.
-        var pf = document.getElementById('appearance-preview-iframe');
-        if (pf) { try { pf.contentWindow.location.reload(); } catch (e) { pf.src += ''; } }
+        // back to the saved page.
+        reloadPreview();
     }
 
     // Intercept Add / Edit clicks inside the Blocks pane.
@@ -355,23 +379,102 @@ if(!function_exists('strp')){function strp($urlStrp){return str_replace(array('h
 
     closeBtn.addEventListener('click', closeEditor);
 
+    // ---- Fetch-based save ----------------------------------------------
+    // The embedded editor's forms post to route('addLink'). Intercept the
+    // submit inside the (same-origin) frame and send it as XHR instead;
+    // saveLink answers JSON for XHR. On success the list + preview refresh
+    // in place — the old behaviour reloaded the whole editor page.
+    function showFrameErrors(fdoc, form, errors) {
+        var box = fdoc.querySelector('.mm-fetch-errors');
+        if (!box) {
+            box = fdoc.createElement('div');
+            box.className = 'alert alert-danger mm-fetch-errors';
+            form.insertBefore(box, form.firstChild);
+        }
+        box.textContent = '';
+        var strong = fdoc.createElement('strong');
+        strong.textContent = "Couldn't save:";
+        box.appendChild(strong);
+        var ul = fdoc.createElement('ul');
+        ul.className = 'mb-0 mt-1';
+        var msgs = [];
+        Object.keys(errors || {}).forEach(function (k) {
+            (errors[k] || []).forEach(function (m) { msgs.push(m); });
+        });
+        if (!msgs.length) msgs.push('Please check the form and try again.');
+        msgs.forEach(function (m) {
+            var li = fdoc.createElement('li');
+            li.textContent = m;
+            ul.appendChild(li);
+        });
+        box.appendChild(ul);
+        box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function onFrameSubmit(e) {
+        var form = e.target;
+        if (!form || !form.action) return;
+        var path;
+        try { path = new URL(form.action, frame.contentWindow.location.href).pathname; }
+        catch (err) { return; }
+        if (path.indexOf(SAVE_PATH) === -1) return; // not a block-save form
+        e.preventDefault();
+
+        var fd = new FormData(form);
+        // Safety net: FormData omits the submit button's own name/value.
+        // ('Save and add more' injects a hidden param input first, so it's
+        // covered either way.)
+        if (e.submitter && e.submitter.name) fd.append(e.submitter.name, e.submitter.value);
+        var addMore = fd.get('param') === 'add_more';
+        var fdoc = frame.contentDocument;
+
+        if (window.mmSaveStatus) window.mmSaveStatus('saving');
+        fetch(form.action, {
+            method: 'POST',
+            body: fd,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+        }).then(function (r) {
+            if (r.status === 422) {
+                return r.json().then(function (j) {
+                    if (window.mmSaveStatus) window.mmSaveStatus('');
+                    showFrameErrors(fdoc, form, j.errors);
+                });
+            }
+            if (!r.ok) throw new Error('save failed ' + r.status);
+            if (window.mmSaveStatus) window.mmSaveStatus('saved');
+            refreshBlocksList();
+            if (addMore) {
+                // Stay in the panel for the next block.
+                frame.src = ADD_URL + '?embed=1';
+                reloadPreview();
+            } else {
+                closeEditor(); // also reloads the preview
+            }
+        }).catch(function () {
+            if (window.mmSaveStatus) window.mmSaveStatus('error');
+        });
+    }
+
     frame.addEventListener('load', function () {
         if (!opened) return; // ignore the initial about:blank
-        var path;
+        var path, fdoc;
         try {
             path = frame.contentWindow.location.pathname;
+            fdoc = frame.contentDocument;
         } catch (err) {
             return; // cross-origin shouldn't happen (same app); bail safely
         }
-        // Still inside the editor (initial load, or 'save and add more'):
-        // leave the panel open.
-        if (EDITOR_RE.test(path)) return;
-        // Left the editor path => the block was saved (or cancelled).
-        // Refresh the unified editor on the Blocks tab (reload preserves
-        // the hash, so we land back on Blocks with a fresh list +
-        // preview and the saved-success flash).
-        window.location.hash = 'blocks';
-        window.location.reload();
+        if (EDITOR_RE.test(path)) {
+            // Editor page (fresh open, or 'save and add more' round-trip):
+            // hook its form submits so saves go through fetch.
+            if (fdoc) fdoc.addEventListener('submit', onFrameSubmit, true);
+            return;
+        }
+        // The frame navigated off the editor path (e.g. an in-editor cancel
+        // link). No parent reload — just close and freshen the list.
+        closeEditor();
+        refreshBlocksList();
     });
 })();
 </script>

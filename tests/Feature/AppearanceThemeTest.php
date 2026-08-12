@@ -143,20 +143,6 @@ class AppearanceThemeTest extends TestCase
         $this->assertCount(0, $this->backgroundFiles($user->id), 'reset promises to clear the background — the file must go too');
     }
 
-    public function test_theme_switch_marks_published_snapshot_dirty(): void
-    {
-        $user = $this->makeUserWithBackground([
-            'theme'                    => self::THEME_A,
-            'published_snapshot'       => json_encode(['user' => [], 'blocks' => []]),
-            'has_unpublished_changes'  => false,
-        ]);
-
-        $this->actingAs($user)->post('/studio/theme', ['theme' => self::THEME_B]);
-
-        $user->refresh();
-        $this->assertTrue((bool) $user->has_unpublished_changes, 'background removal must flag the published page as stale');
-    }
-
     public function test_avatar_backdrop_none_emits_transparent_css(): void
     {
         // "See-through" profile photos: transparency survives the upload

@@ -23,10 +23,7 @@
 <!--#### BEGIN Meta Tags social media preview images  ####-->
   <!-- This shows a preview for title, description and avatar image of users profiles if shared on social media sites -->
   @php
-    // Honour the published snapshot's avatar on the public page ($avatarOverride,
-    // set by maybePublishedView); fall back to the live avatar for the preview /
-    // editor render. Keeps an unpublished photo out of social-share previews.
-    $__metaAvatar = ($avatarOverride ?? null) ?: findAvatar($userinfo->id);
+    $__metaAvatar = findAvatar($userinfo->id);
   @endphp
 
     <!-- Facebook Meta Tags -->

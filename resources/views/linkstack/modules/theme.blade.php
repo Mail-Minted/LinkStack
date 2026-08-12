@@ -37,9 +37,7 @@ $customBackgroundExists = false;
 
 @if(theme('allow_custom_background') != "false")
 @php
-// Draft/publish: the PUBLISHED background copy on the public render
-// ($backgroundOverride), else the live draft background.
-$customBackgroundFile = ($backgroundOverride ?? null) ?: findBackground($userinfo->id);
+$customBackgroundFile = findBackground($userinfo->id);
 $customBackgroundPath = base_path('assets/img/background-img/'.$customBackgroundFile);
 $customBackgroundURL = url('assets/img/background-img/'.$customBackgroundFile);
 $customBackgroundExists = file_exists($customBackgroundPath)

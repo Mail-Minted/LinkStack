@@ -48,4 +48,24 @@ class StudioRoutesTest extends TestCase
     {
         $this->get('/studio/edit')->assertRedirect();
     }
+
+    public function test_social_and_blocks_tabs_render_auto_save_wiring(): void
+    {
+        $user = $this->makeUser();
+
+        $response = $this->actingAs($user)->get('/studio/edit');
+        $response->assertSuccessful();
+
+        // Social: inputs auto-save (instant-live) — the manual submit
+        // button is gone; the form and the swappable chip-row region are
+        // what the wiring script hooks.
+        $response->assertDontSee('Save links');
+        $response->assertSee('id="mm-social-form"', false);
+        $response->assertSee('mm-social-order-region', false);
+
+        // Blocks: saves go through fetch and refresh this region in
+        // place instead of reloading the editor.
+        $response->assertSee('mm-blocks-list-region', false);
+        $response->assertSee('refreshBlocksList', false);
+    }
 }

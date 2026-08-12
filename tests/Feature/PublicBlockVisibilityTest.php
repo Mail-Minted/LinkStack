@@ -9,14 +9,13 @@ use Tests\TestCase;
 
 /**
  * /going/{id} and /vcard/{id} reach a block directly by id rather than
- * through a page render, and neither applied the visibility rules that
- * UserController::maybePublishedView applies. So a suspended account's
- * data, and blocks that exist only in an unpublished draft, stayed
- * publicly reachable to anyone who knew the id -- and ids appear in public
- * page markup.
+ * through a page render, so they need the same visibility rule the page
+ * applies: a suspended account's blocks must not be served to anyone
+ * who knows the id -- and ids appear in public page markup.
  *
  * vCard blocks make that concrete: they carry home address, home/cell/work
- * phone, and personal and work e-mail.
+ * phone, and personal and work e-mail. (Under the instant-live model all
+ * non-suspended live rows are public by definition.)
  */
 class PublicBlockVisibilityTest extends TestCase
 {
@@ -52,60 +51,24 @@ class PublicBlockVisibilityTest extends TestCase
         return $link;
     }
 
-    /** Publish exactly the given blocks, leaving anything else draft-only. */
-    private function publishOnly(User $owner, array $links): void
-    {
-        User::where('id', $owner->id)->update([
-            'published_snapshot' => json_encode([
-                'user' => ['id' => $owner->id],
-                'blocks' => array_map(fn ($l) => ['id' => $l->id], $links),
-            ]),
-        ]);
-    }
-
-    public function test_published_vcard_is_served(): void
+    public function test_live_vcard_is_served(): void
     {
         $owner = $this->makeUser();
         $card = $this->block($owner, 'vcard');
-        $this->publishOnly($owner, [$card]);
 
         $this->get('/vcard/' . $card->id)->assertSuccessful();
-    }
-
-    public function test_draft_only_vcard_is_not_served(): void
-    {
-        $owner = $this->makeUser();
-        $published = $this->block($owner);
-        $draftCard = $this->block($owner, 'vcard');
-        $this->publishOnly($owner, [$published]); // draftCard deliberately omitted
-
-        $response = $this->get('/vcard/' . $draftCard->id);
-
-        $response->assertNotFound();
-        $response->assertDontSee('12 Secret Lane', false);
     }
 
     public function test_suspended_owners_vcard_is_not_served(): void
     {
         $owner = $this->makeUser();
         $card = $this->block($owner, 'vcard');
-        $this->publishOnly($owner, [$card]);
         User::where('id', $owner->id)->update(['block' => 'yes']);
 
         $response = $this->get('/vcard/' . $card->id);
 
         $response->assertNotFound();
         $response->assertDontSee('12 Secret Lane', false);
-    }
-
-    public function test_never_published_owner_still_serves_their_live_blocks(): void
-    {
-        // Matches maybePublishedView: an empty snapshot renders live, so
-        // the gate must not hide a page that has simply never published.
-        $owner = $this->makeUser();
-        $card = $this->block($owner, 'vcard');
-
-        $this->get('/vcard/' . $card->id)->assertSuccessful();
     }
 
     public function test_vcard_rejects_a_non_vcard_block(): void
@@ -122,30 +85,18 @@ class PublicBlockVisibilityTest extends TestCase
     {
         $owner = $this->makeUser();
         $link = $this->block($owner);
-        $this->publishOnly($owner, [$link]);
         User::where('id', $owner->id)->update(['block' => 'yes']);
 
         $this->get('/going/' . $link->id)->assertNotFound();
+        $this->assertSame(0, Link::find($link->id)->click_number);
     }
 
-    public function test_click_redirect_still_works_for_a_published_block(): void
+    public function test_click_redirect_works_for_a_live_block(): void
     {
         $owner = $this->makeUser();
         $link = $this->block($owner);
-        $this->publishOnly($owner, [$link]);
 
         $this->get('/going/' . $link->id)->assertRedirect('https://example.com');
         $this->assertSame(1, Link::find($link->id)->click_number);
-    }
-
-    public function test_click_redirect_hides_draft_only_blocks(): void
-    {
-        $owner = $this->makeUser();
-        $published = $this->block($owner);
-        $draft = $this->block($owner);
-        $this->publishOnly($owner, [$published]);
-
-        $this->get('/going/' . $draft->id)->assertNotFound();
-        $this->assertSame(0, Link::find($draft->id)->click_number);
     }
 }

@@ -259,9 +259,8 @@
 (function () {
     // Live preview (Phase 4): patch the shared preview iframe as the user
     // edits Basics — name and description — so changes show instantly,
-    // before saving. The iframe renders the owner's DRAFT (?preview=1);
-    // a save reloads it to the persisted draft. Same-origin, so we can
-    // reach into it directly.
+    // before the debounced save lands. Same-origin, so we can reach into
+    // it directly.
     // Look the iframe up fresh each call: this partial is parsed before the
     // live-preview partial (which holds the iframe) is included, so a capture
     // at parse time would be null. It also survives the iframe reloading.

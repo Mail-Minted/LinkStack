@@ -96,17 +96,9 @@ class UserController extends Controller
             return abort(404);
         }
 
-        // Draft/publish: public visitors get the PUBLISHED snapshot; the
-        // owner's ?preview=1 and users with no snapshot yet fall through
-        // to the live (draft) render below. See DRAFT-PUBLISH-PLAN.md.
-        $published = $this->maybePublishedView($id, $request, $littlelink_name);
-        if ($published !== null) {
-            return $published;
-        }
-
         $userinfo = User::select('id', 'name', 'littlelink_name', 'littlelink_description', 'theme', 'role', 'block', 'google_analytics_id', 'theme_customization')->where('id', $id)->first();
         $information = User::select('name', 'littlelink_name', 'littlelink_description', 'theme')->where('id', $id)->get();
-        
+
         if ($userinfo->block == 'yes') {
             return abort(404);
         }
@@ -152,14 +144,12 @@ class UserController extends Controller
             return abort(404);
         }
 
-        // Draft/publish (see littlelink() + DRAFT-PUBLISH-PLAN.md).
-        $published = $this->maybePublishedView($id, $request, $littlelink_name);
-        if ($published !== null) {
-            return $published;
-        }
-
         $userinfo = User::select('id', 'name', 'littlelink_name', 'littlelink_description', 'theme', 'role', 'block', 'google_analytics_id', 'theme_customization')->where('id', $id)->first();
         $information = User::select('name', 'littlelink_name', 'littlelink_description', 'theme')->where('id', $id)->get();
+
+        if ($userinfo->block == 'yes') {
+            return abort(404);
+        }
 
         $links = DB::table('links')
         ->join('buttons', 'buttons.id', '=', 'links.button_id')
@@ -184,47 +174,6 @@ class UserController extends Controller
         }
 
         return view('linkstack.linkstack', ['userinfo' => $userinfo, 'information' => $information, 'links' => $links, 'littlelink_name' => $littlelink_name]);
-    }
-
-    /**
-     * Draft/publish decision for a bio page. Returns the PUBLISHED-
-     * snapshot view for public visitors, or null to let the caller fall
-     * through to its live (draft) render. The `block` (admin-disabled)
-     * flag is a live property and 404s immediately. Only the
-     * authenticated owner may see the live draft via ?preview=1 — any
-     * other ?preview=1 gets the published snapshot, so drafts can't leak.
-     */
-    private function maybePublishedView($id, request $request, $littlelink_name)
-    {
-        $owner = User::select('id', 'block', 'published_snapshot')->where('id', $id)->first();
-        if (!$owner) {
-            return null; // nonexistent — let the live path handle it
-        }
-        if ($owner->block == 'yes') {
-            abort(404); // page disabled by admin — immediate, not drafted
-        }
-
-        $isOwnerPreview = $request->boolean('preview') && Auth::check() && Auth::id() == $owner->id;
-        if ($isOwnerPreview || empty($owner->published_snapshot)) {
-            return null; // owner previewing the draft, or never published -> render live
-        }
-
-        $snap = json_decode($owner->published_snapshot, true);
-        if (!is_array($snap)) {
-            return null; // malformed snapshot -> fail safe to the live render
-        }
-
-        [$userinfo, $information, $links] = \App\Services\PublishedPage::hydrate($snap);
-        $images = $snap['images'] ?? [];
-        return view('linkstack.linkstack', [
-            'userinfo' => $userinfo,
-            'information' => $information,
-            'links' => $links,
-            'littlelink_name' => $littlelink_name,
-            // Published image copies so avatar/background honor draft/publish.
-            'avatarOverride' => $images['avatar'] ?? null,
-            'backgroundOverride' => $images['background'] ?? null,
-        ]);
     }
 
     //Redirect to user page
@@ -315,6 +264,12 @@ class UserController extends Controller
                 // didn't save — otherwise a failed save looks like the block
                 // silently never appeared.
                 if ($validator->fails()) {
+                    // XHR saves (the Blocks tab's fetch-based editor panel)
+                    // get a 422 + messages to render in place of the
+                    // redirect-with-errors round trip.
+                    if ($request->expectsJson()) {
+                        return response()->json(['errors' => $validator->errors()], 422);
+                    }
                     $embed  = $request->boolean('embed') ? '?embed=1' : '';
                     $target = empty($request->linkid)
                         ? url('studio/add-link' . $embed)
@@ -468,14 +423,19 @@ class UserController extends Controller
             $message = "Link added";
         }
 
-        // Step 8: Redirect
-        // Where to go after saving a block:
+        // Step 8: Respond
+        // XHR saves (the Blocks tab's fetch-based editor panel) just need
+        // an OK — the client refreshes the block list + live preview in
+        // place, no navigation.
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message]);
+        }
+
+        // Full-page fallback — where to go after saving a block:
         // - 'add_more' keeps the operator in the add flow for another block.
         //   In embed mode (the Blocks-tab panel) we keep ?embed=1 so the
         //   reloaded form stays chrome-less inside the panel.
-        // - a normal save returns to the Blocks tab; in embed mode the
-        //   panel's parent watches for this navigation and refreshes the
-        //   list + live preview.
+        // - a normal save returns to the Blocks tab.
         $embed = $request->boolean('embed');
         if ($request->input('param') == 'add_more') {
             $redirectUrl = $embed ? 'studio/add-link?embed=1' : 'studio/add-link';
@@ -627,19 +587,12 @@ class UserController extends Controller
 
     //Count the number of clicks and redirect to link
     /**
-     * The visibility gate the public bio render applies (see
-     * maybePublishedView), for the public routes that reach a block
-     * directly instead of through a page render.
-     *
-     * Those routes -- /going/{id} and /vcard/{id} -- looked the block up by
-     * id and served it, so a suspended account's data and blocks that only
-     * exist in an unpublished draft were both still reachable by anyone who
-     * knew the id (they appear in public page markup).
-     *
-     * Returns the link, or aborts 404. Semantics deliberately mirror
-     * maybePublishedView: suspended owner is hidden outright, a user who
-     * has never published still serves their live rows, and once published
-     * only what is in the snapshot is public.
+     * The visibility gate the public bio render applies, for the public
+     * routes that reach a block directly instead of through a page
+     * render (/going/{id}, /vcard/{id}): a suspended account's blocks
+     * must not be served just because someone knows the id. Live rows
+     * are otherwise public by definition (instant-live model).
+     * Returns the link, or aborts 404.
      */
     private function publicLinkOrAbort($linkId): Link
     {
@@ -648,19 +601,9 @@ class UserController extends Controller
             abort(404);
         }
 
-        $owner = User::select('id', 'block', 'published_snapshot')->find($link->user_id);
+        $owner = User::select('id', 'block')->find($link->user_id);
         if (!$owner || $owner->block === 'yes') {
             abort(404);
-        }
-
-        if (!empty($owner->published_snapshot)) {
-            $snap = json_decode($owner->published_snapshot, true);
-            if (is_array($snap)) {
-                $publishedIds = collect($snap['blocks'] ?? [])->pluck('id')->all();
-                if (!in_array($link->id, $publishedIds)) {
-                    abort(404); // draft-only block
-                }
-            }
         }
 
         return $link;
@@ -903,13 +846,10 @@ class UserController extends Controller
     {
         $userId = Auth::id();
 
-        // Draft/publish: onboard this user to the snapshot model if the
-        // backfill missed them (or they're brand new), so their public
-        // page is snapshot-backed and edits become draft. No-op once set.
-        \App\Services\PublishedPage::ensureSnapshot($userId);
-        // Drives the "unpublished changes" banner: does the draft differ
-        // from what's published?
-        $isDirty = \App\Services\PublishedPage::isDirty($userId);
+        // Version history: record a restore point when an editing
+        // session starts (skipped if unchanged or captured recently).
+        \App\Services\PageVersions::captureIfDue($userId);
+        $versions = \App\Services\PageVersions::listFor($userId);
 
         $user   = User::find($userId);
 
@@ -943,28 +883,21 @@ class UserController extends Controller
             ->paginate(99999);
 
         return view('studio.edit', compact(
-            'user', 'pages', 'saved', 'sparseAppearance', 'fonts', 'configuredIcons', 'pagePage', 'links', 'isDirty'
+            'user', 'pages', 'saved', 'sparseAppearance', 'fonts', 'configuredIcons', 'pagePage', 'links', 'versions'
         ));
     }
 
     /**
-     * Publish: promote the current draft (live DB) to the published
-     * snapshot the public /@handle renders from. See DRAFT-PUBLISH-PLAN.
+     * Restore the page to a saved version (instant-live model — the
+     * change is public immediately). The current state is captured
+     * first so the restore itself can be undone from History.
      */
-    public function publish(request $request)
+    public function restoreVersion(request $request, $id)
     {
-        \App\Services\PublishedPage::publishFor(Auth::id());
-        return redirect('/studio/edit')->with('success', 'Your page is now live.');
-    }
-
-    /**
-     * Discard: revert the draft (live DB + images) back to the published
-     * snapshot. See DRAFT-PUBLISH-PLAN.md.
-     */
-    public function discard(request $request)
-    {
-        \App\Services\PublishedPage::discard(Auth::id());
-        return redirect('/studio/edit')->with('success', 'Your unpublished changes were discarded.');
+        if (!\App\Services\PageVersions::restore(Auth::id(), $id)) {
+            abort(404);
+        }
+        return redirect('/studio/edit')->with('success', 'Your page was restored to the selected version.');
     }
 
     //Save littlelink page (name, description, logo)
@@ -1129,7 +1062,6 @@ class UserController extends Controller
             unlink(base_path($avatarName));
         }
 
-        \App\Services\PublishedPage::markImageDirty($userId);
         return back();
     }
 
@@ -1179,7 +1111,6 @@ class UserController extends Controller
             // the Remove button hidden because the blob said there was
             // nothing to remove.
             \App\Http\Controllers\AppearanceController::removeBackgroundFileIfPresent($userId);
-            \App\Services\PublishedPage::markImageDirty($userId);
         }
         User::where('id', $userId)->update($update);
 
@@ -1375,7 +1306,6 @@ class UserController extends Controller
     public function delProfilePicture()
     {
         $this->removeAvatarFileIfPresent(Auth::id());
-        \App\Services\PublishedPage::markImageDirty(Auth::id());
         return back();
     }
 
@@ -1425,7 +1355,6 @@ class UserController extends Controller
 
         $fileName = $userId . '_' . time() . '.' . $profilePhoto->extension();
         $profilePhoto->move(base_path('assets/img'), $fileName);
-        \App\Services\PublishedPage::markImageDirty($userId);
 
         return back()->with('success', 'Profile photo updated.');
     }
@@ -1845,6 +1774,12 @@ class UserController extends Controller
                     Link::where('id', $iconId)->delete();
                 }
             }
+        }
+
+        // Auto-save XHR (the Social tab) needs no navigation; the client
+        // shows the shared save indicator and refreshes the chip row.
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Social icons updated.']);
         }
 
         return redirect('/studio/edit#social')->with('success', 'Social icons updated.');

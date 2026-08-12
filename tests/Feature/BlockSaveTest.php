@@ -147,6 +147,34 @@ class BlockSaveTest extends TestCase
         $this->assertSame('', (string) $block->custom_css, 'a content edit must never freeze styling onto a pristine block');
     }
 
+    public function test_xhr_save_returns_json_and_creates_block(): void
+    {
+        $user = $this->makeUser();
+
+        // The Blocks tab's fetch-based editor panel saves via XHR and
+        // expects a JSON OK instead of the full-page redirect.
+        $response = $this->actingAs($user)->postJson('/studio/edit-link', $this->stripePayload());
+
+        $response->assertOk()->assertJson(['message' => 'Link added']);
+        $this->assertNotNull(
+            Link::where('user_id', $user->id)->where('type', 'stripe_payment')->first(),
+            'an XHR save must persist the block like the form save does'
+        );
+    }
+
+    public function test_xhr_validation_failure_returns_422_with_errors(): void
+    {
+        $user = $this->makeUser();
+
+        $response = $this->actingAs($user)->postJson(
+            '/studio/edit-link',
+            $this->stripePayload(['product_description' => ''])
+        );
+
+        $response->assertStatus(422)->assertJsonStructure(['errors' => ['product_description']]);
+        $this->assertSame(0, Link::where('user_id', $user->id)->count());
+    }
+
     public function test_diverged_block_keeps_custom_css_on_content_edit(): void
     {
         $user = $this->makeUser();
