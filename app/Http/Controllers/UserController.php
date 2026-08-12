@@ -1368,11 +1368,14 @@ class UserController extends Controller
      */
     public function editFavicon(Request $request)
     {
+        // 512KB, not the 2MB used for avatars/backgrounds: a favicon is a
+        // 32-512px square (a few KB), and the browser refetches it on every
+        // page load, so a heavy one only slows the customer's own page.
         $request->validate([
-            'image' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,ico', 'max:2048'],
+            'image' => ['required', 'file', 'mimes:jpeg,jpg,png,webp,ico', 'max:512'],
         ], [
             'image.mimes' => __('messages.The image must be') . ' JPEG, JPG, PNG, webP, ICO.',
-            'image.max'   => __('messages.The image size should not exceed 2MB'),
+            'image.max'   => 'The browser tab icon should not exceed 512KB.',
         ]);
 
         $userId = Auth::id();

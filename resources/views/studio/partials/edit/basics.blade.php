@@ -240,7 +240,7 @@
      immediate effect, so it can't ride the auto-saving basics form. --}}
 <div class="form-group col-lg-8">
   <h5 style="margin-top:50px">Browser tab icon</h5>
-  <p class="text-muted">The small icon (favicon) shown in the browser tab when someone views your page. Square images work best — PNG or ICO, up to 2MB. Changes apply immediately.</p>
+  <p class="text-muted">The small icon (favicon) shown in the browser tab when someone views your page. Square images work best — PNG or ICO, up to 512KB. Changes apply immediately.</p>
   @php $userFavicon = findFavicon(Auth::id()); @endphp
   @if($userFavicon !== 'error.error')
     <div class="mb-3 d-flex align-items-center" style="gap:12px">

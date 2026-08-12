@@ -111,6 +111,35 @@ class UserFaviconTest extends TestCase
         $this->assertSame('error.error', findFavicon($user->id));
     }
 
+    public function test_oversized_favicon_is_rejected(): void
+    {
+        $user = $this->makeUserWithCleanup();
+
+        // 512KB cap: a favicon is a few KB, and the browser refetches it on
+        // every page load, so the limit is deliberately tighter than the
+        // 2MB allowed for avatars and backgrounds.
+        $this->actingAs($user)
+            ->post('/studio/favicon', [
+                'image' => UploadedFile::fake()->image('huge.png', 512, 512)->size(600),
+            ])
+            ->assertSessionHasErrors('image');
+
+        $this->assertSame('error.error', findFavicon($user->id));
+    }
+
+    public function test_favicon_at_the_size_limit_is_accepted(): void
+    {
+        $user = $this->makeUserWithCleanup();
+
+        $this->actingAs($user)
+            ->post('/studio/favicon', [
+                'image' => UploadedFile::fake()->image('ok.png', 256, 256)->size(500),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertNotSame('error.error', findFavicon($user->id));
+    }
+
     public function test_guests_cannot_upload_a_favicon(): void
     {
         $this->post('/studio/favicon', [
