@@ -27,12 +27,8 @@ $usrhandl = Auth::user()->littlelink_name;
     }
     @endphp
 
-      <!-- Favicon -->
-      @if(file_exists(base_path("assets/linkstack/images/").findFile('favicon')))
-      <link rel="icon" type="image/png" href="{{ asset('assets/linkstack/images/'.findFile('favicon')) }}">
-      @else
-      <link rel="icon" type="image/svg+xml" href="{{ asset('assets/linkstack/images/logo.svg') }}">
-      @endif
+      <!-- Favicon: the signed-in customer's own icon, falling back to the site's -->
+      <x-tab-icon />
       
       <!-- Library / Plugin Css Build -->
       <link rel="stylesheet" href="{{asset('assets/css/core/libs.min.css')}}" />

@@ -147,6 +147,67 @@ class UserFaviconTest extends TestCase
         ])->assertRedirect('/login');
     }
 
+    public function test_studio_chrome_uses_the_signed_in_users_favicon(): void
+    {
+        $user = $this->makeUserWithCleanup();
+
+        $this->actingAs($user)->post('/studio/favicon', [
+            'image' => UploadedFile::fake()->image('icon.png', 64, 64),
+        ]);
+        $stored = findFavicon($user->id);
+        $this->assertNotSame('error.error', $stored);
+
+        // White-label extends to the editor itself, not just the public page.
+        $this->actingAs($user)
+            ->get('/studio/edit')
+            ->assertSuccessful()
+            ->assertSee('assets/img/favicon-img/' . $stored, false);
+    }
+
+    public function test_studio_chrome_falls_back_to_the_site_icon(): void
+    {
+        $user = $this->makeUserWithCleanup();
+
+        $this->actingAs($user)
+            ->get('/studio/edit')
+            ->assertSuccessful()
+            ->assertDontSee('assets/img/favicon-img', false);
+    }
+
+    public function test_studio_chrome_does_not_leak_another_users_favicon(): void
+    {
+        $owner = $this->makeUserWithCleanup();
+        $other = $this->makeUserWithCleanup();
+
+        $this->actingAs($owner)->post('/studio/favicon', [
+            'image' => UploadedFile::fake()->image('icon.png', 64, 64),
+        ]);
+        $this->assertNotSame('error.error', findFavicon($owner->id));
+
+        $this->actingAs($other)
+            ->get('/studio/edit')
+            ->assertSuccessful()
+            ->assertDontSee('assets/img/favicon-img', false);
+    }
+
+    public function test_admin_panel_uses_the_signed_in_admins_favicon(): void
+    {
+        $admin = $this->makeUser(['role' => 'admin']);
+        $this->cleanupUserIds[] = $admin->id;
+
+        $this->actingAs($admin)->post('/studio/favicon', [
+            'image' => UploadedFile::fake()->image('icon.png', 64, 64),
+        ]);
+        $stored = findFavicon($admin->id);
+        $this->assertNotSame('error.error', $stored);
+
+        // panel/* and admin/* share layouts.sidebar with the studio.
+        $this->actingAs($admin)
+            ->get('/admin/config')
+            ->assertSuccessful()
+            ->assertSee('assets/img/favicon-img/' . $stored, false);
+    }
+
     public function test_favicon_only_affects_its_owners_page(): void
     {
         $owner = $this->makeUserWithCleanup();

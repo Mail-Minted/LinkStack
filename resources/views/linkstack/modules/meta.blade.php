@@ -68,16 +68,7 @@
 @include('components.favicon')
 @include('components.favicon-extension')
 
-@php
-  // White-label: a customer-uploaded tab icon wins over the site favicon.
-  $__userFavicon = findFavicon($userinfo->id);
-@endphp
-@if($__userFavicon !== 'error.error')
-<link rel="icon" href="{{ asset('assets/img/favicon-img/'.$__userFavicon) }}">
-@elseif(file_exists(base_path("assets/linkstack/images/").findFile('favicon')))
-<link rel="icon" type="image/png" href="{{ asset('assets/linkstack/images/'.findFile('favicon')) }}">
-@else
-<link rel="icon" type="image/svg+xml" href="{{ asset('assets/linkstack/images/logo.svg') }}">
-@endif
+{{-- White-label: the page OWNER's icon, not the visitor's. --}}
+<x-tab-icon :user-id="$userinfo->id" />
 
 @include('layouts.analytics')
