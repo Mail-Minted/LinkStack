@@ -416,7 +416,6 @@ class AdminController extends Controller
         $targetUser->theme_customization = json_encode($sparse, JSON_UNESCAPED_SLASHES);
         $targetUser->save();
       }
-      \App\Services\PublishedPage::markImageDirty($id);
     }
 
     return redirect("admin/users/all");

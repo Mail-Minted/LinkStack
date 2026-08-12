@@ -51,8 +51,8 @@
        (1fr 1fr, stacks <=992px) so the split matches the old pages. */
     .mm-edit-content { min-width: 0; }
 
-    /* Draft/publish status bar */
-    .mm-publish-bar {
+    /* Status bar: auto-save indicator + version History dropdown */
+    .mm-history-bar {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -65,22 +65,44 @@
         background: rgba(128, 128, 128, 0.06);
         font-size: 0.92rem;
     }
-    .mm-publish-bar--dirty {
-        border-color: var(--bs-primary, #3b82f6);
-        background: rgba(59, 130, 246, 0.08);
-    }
-    .mm-publish-status { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-    .mm-publish-actions { display: flex; gap: 8px; }
-    .mm-publish-bar .btn[disabled] { opacity: 0.5; }
-
-    /* Client-toggled dirty state: both status messages live in the DOM;
-       the --dirty class picks which shows and reveals the Discard form. */
-    .mm-publish-bar .mm-publish-status-dirty { display: none; }
-    .mm-publish-bar--dirty .mm-publish-status-dirty { display: inline; }
-    .mm-publish-bar--dirty .mm-publish-status-clean { display: none; }
-    .mm-publish-bar:not(.mm-publish-bar--dirty) .mm-discard-form { display: none; }
     .mm-save-indicator { margin-left: 8px; opacity: 0.7; font-size: 0.85rem; font-style: italic; }
     .mm-save-indicator--error { color: var(--bs-danger, #dc3545); opacity: 1; font-style: normal; }
+
+    .mm-history { position: relative; }
+    .mm-history summary { list-style: none; cursor: pointer; }
+    .mm-history summary::-webkit-details-marker { display: none; }
+    .mm-history-menu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 6px);
+        z-index: 30;
+        min-width: 260px;
+        max-height: 320px;
+        overflow-y: auto;
+        padding: 6px;
+        border: 1px solid rgba(128, 128, 128, 0.3);
+        border-radius: 8px;
+        background: var(--bs-body-bg, #fff);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+    .mm-history-item {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        padding: 7px 10px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        font-size: 0.9rem;
+        cursor: pointer;
+    }
+    .mm-history-item:hover { background: rgba(128, 128, 128, 0.12); }
+    .mm-history-cause { opacity: 0.6; font-size: 0.8rem; white-space: nowrap; }
+    .mm-history-empty { padding: 10px; opacity: 0.7; font-size: 0.88rem; }
 </style>
 
 <div class="container-fluid content-inner mt-n5 py-0">
@@ -89,30 +111,32 @@
       <div class="card rounded">
         <div class="card-body">
 
-          {{-- Draft/publish status bar. Your edits auto-save to your DRAFT
-               as you make them and show in the live preview; the public
-               page only changes when you Publish. The dirty state is
-               toggled client-side after each auto-save (script below). --}}
-          <div class="mm-publish-bar @if(!empty($isDirty)) mm-publish-bar--dirty @endif" id="mm-publish-bar">
-            <span class="mm-publish-status">
-              <span class="mm-publish-status-dirty"><i class="bi bi-dot"></i> You have <strong>unpublished changes</strong> &mdash; visible here, not yet on your public page.</span>
-              <span class="mm-publish-status-clean"><i class="bi bi-check-circle"></i> Your public page is up to date.</span>
+          {{-- Status bar. Edits auto-save and are live on the public page
+               immediately (instant-live model); History restores the page
+               to an earlier version (a restore point is captured when an
+               editing session starts, and before every restore). --}}
+          <div class="mm-history-bar">
+            <span>
+              <i class="bi bi-check-circle"></i> Changes save automatically and go live right away.
               <span class="mm-save-indicator" id="mm-save-indicator" aria-live="polite"></span>
             </span>
-            <div class="mm-publish-actions">
-              <form action="{{ route('discard') }}" method="post" class="mb-0 mm-discard-form">
-                @csrf
-                <button type="submit" class="btn btn-outline-secondary btn-sm" data-confirm="Discard your unpublished changes and revert to your published page?">
-                  <i class="bi bi-arrow-counterclockwise"></i> Discard
-                </button>
-              </form>
-              <form action="{{ route('publish') }}" method="post" class="mb-0">
-                @csrf
-                <button type="submit" id="mm-publish-btn" class="btn btn-primary btn-sm" @if(empty($isDirty)) disabled @endif>
-                  <i class="bi bi-cloud-arrow-up"></i> Publish
-                </button>
-              </form>
-            </div>
+            <details class="mm-history">
+              <summary class="btn btn-outline-secondary btn-sm"><i class="bi bi-clock-history"></i> History</summary>
+              <div class="mm-history-menu">
+                @forelse($versions as $v)
+                  <form action="{{ route('restoreVersion', $v->id) }}" method="post" class="mb-0">
+                    @csrf
+                    <button type="submit" class="mm-history-item"
+                            data-confirm="Restore your page to this version? Your current page is saved to History first, so you can undo this.">
+                      <span>{{ \Illuminate\Support\Carbon::parse($v->created_at)->diffForHumans() }}</span>
+                      <span class="mm-history-cause">{{ ['published' => 'previously live', 'before-restore' => 'before a restore'][$v->cause] ?? '' }}</span>
+                    </button>
+                  </form>
+                @empty
+                  <div class="mm-history-empty">No versions yet &mdash; one is saved automatically when you start editing.</div>
+                @endforelse
+              </div>
+            </details>
           </div>
 
           {{-- Shared flash + validation surface. Every tab's form
@@ -222,19 +246,12 @@
 </script>
 <script nonce="{{ csp_nonce() }}">
 (function () {
-    // ---- Draft auto-save wiring ----------------------------------------
-    // Tabs persist edits to the draft by calling window.mmAutoSaveForm();
-    // on success it flips the banner to "unpublished changes" and enables
-    // Publish. No manual Save step, no unsaved-changes warning.
-    var bar        = document.getElementById('mm-publish-bar');
-    var publishBtn = document.getElementById('mm-publish-btn');
+    // ---- Auto-save wiring ----------------------------------------------
+    // Tabs persist edits by calling window.mmAutoSaveForm(); saves land
+    // on the live page immediately (instant-live model). No manual Save
+    // step, no unsaved-changes warning.
     var indicator  = document.getElementById('mm-save-indicator');
     var indicatorTimer = null;
-
-    window.mmMarkDirty = function () {
-        if (bar) bar.classList.add('mm-publish-bar--dirty');
-        if (publishBtn) publishBtn.disabled = false;
-    };
 
     window.mmSaveStatus = function (state) {
         if (!indicator) return;
@@ -254,9 +271,11 @@
 
     // Debounced per-form auto-save. POSTs the form to its own action; the
     // server persists to the draft and (harmlessly) redirects, which we
-    // ignore. One in-flight timer per form.
+    // ignore. One in-flight timer per form. `onSaved` (optional) runs
+    // after a successful save — tabs use it to refresh the live preview
+    // or re-render server-driven fragments (e.g. the Social chip row).
     var timers = new WeakMap();
-    window.mmAutoSaveForm = function (form, delay) {
+    window.mmAutoSaveForm = function (form, delay, onSaved) {
         if (!form) return;
         clearTimeout(timers.get(form));
         timers.set(form, setTimeout(function () {
@@ -268,8 +287,8 @@
                 headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
             }).then(function (r) {
                 if (!r.ok) throw new Error('save failed ' + r.status);
-                window.mmMarkDirty();
                 window.mmSaveStatus('saved');
+                if (onSaved) onSaved();
             }).catch(function () {
                 window.mmSaveStatus('error');
             });

@@ -22,6 +22,10 @@
             'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
         }
     });
+    // Re-callable: the Blocks tab swaps its list region's HTML after a
+    // fetch-based save, which replaces #links-table-body — it calls this
+    // again to bind drag-to-reorder to the new element.
+    window.mmInitBlockSortable = function () {
     var sortableTbody = document.getElementById("links-table-body");
     if (sortableTbody) {
         const sortableLinkTable = Sortable.create(sortableTbody, {
@@ -33,8 +37,11 @@
             },
             store: {
                 get: function (sortable) {
-                    var order = linksTableOrders || "";
-                    return order ? order.split('|') : [];
+                    // The server renders rows in their saved order, so
+                    // there's no client-side order to restore. (This used
+                    // to read a page-emitted global that could go stale
+                    // after an in-place list refresh and scramble rows.)
+                    return [];
                 },
                 set: function (sortable) {
                     const linkOrders = sortable.toArray();
@@ -77,6 +84,8 @@
             }
         });
     }
+    };
+    window.mmInitBlockSortable();
 
 
 

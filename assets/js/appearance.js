@@ -230,9 +230,8 @@
     wrap.addEventListener('input',  onAppearanceEdit);
     wrap.addEventListener('change', onAppearanceEdit);
 
-    // No unsaved-changes warning: edits auto-save to the draft as they're
-    // made, so there is nothing unsaved to lose. The "unpublished changes"
-    // state lives in the top Publish bar, not a browser prompt.
+    // No unsaved-changes warning: edits auto-save (and go live) as
+    // they're made, so there is nothing unsaved to lose.
 
     // ---------- Tab state persisted in URL hash ----------
     //
