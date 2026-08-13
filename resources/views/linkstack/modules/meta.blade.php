@@ -55,14 +55,26 @@
 
 <!--#### END Meta Tags social media preview images  ####-->
 
-@if(config('advanced-config.linkstack_title') != '' and env('HOME_URL') === '')
+@php
+  // Browser tab title. The customer's own override wins over every
+  // site-wide setting -- it is the most specific, and white-labelling is
+  // the point. Upstream LinkStack's default was "{name} 🔗 {APP_NAME}",
+  // which advertised the platform in the tab of every customer page; the
+  // bare display name is the white-label default now. An admin can still
+  // reinstate a suffix site-wide via advanced-config.linkstack_title.
+  // getData() returns the STRING "null" when the user has no data blob
+  // at all, and null when the key is simply unset -- guard both.
+  $mmTabTitle = \App\Models\UserData::getData($userinfo->id, 'tab-title');
+  $mmTabTitle = is_string($mmTabTitle) && $mmTabTitle !== 'null' ? trim($mmTabTitle) : '';
+@endphp
+@if($mmTabTitle !== '')
+<title>{{ $mmTabTitle }}</title>
+@elseif(config('advanced-config.linkstack_title') != '' and env('HOME_URL') === '')
 <title>{{ $userinfo->name }} {{ config('advanced-config.linkstack_title') }}</title>
 @elseif(env('CUSTOM_META_TAGS') == 'true' and config('advanced-config.title') != '')
 <title>{{ config('advanced-config.title') }}</title>
-@elseif(env('HOME_URL') != '')
-<title>{{ $userinfo->name }}</title>
 @else
-<title>{{ $userinfo->name }} 🔗 {{ config('app.name') }} </title>
+<title>{{ $userinfo->name }}</title>
 @endif
 
 @include('components.favicon')

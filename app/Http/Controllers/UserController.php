@@ -919,8 +919,13 @@ class UserController extends Controller
             // budget covers the small HTML overhead from the trimmed
             // CKEditor (a single <a> or <strong> wrapper).
             'pageDescription' => 'sometimes|nullable|string|max:500',
+            // Browser tab title. 60 chars is about where every browser
+            // truncates a tab label anyway, so a longer one is only ever
+            // read by search engines.
+            'tabTitle' => 'sometimes|nullable|string|max:60',
             'image' => 'sometimes|image|mimes:jpeg,jpg,png,webp|max:2048', // Max file size: 2MB
         ], [
+            'tabTitle.max' => 'The browser tab title should not exceed 60 characters.',
             'littlelink_name.unique' => __('messages.That handle has already been taken'),
             'image.image' => __('messages.The selected file must be an image'),
             'image.mimes' => __('messages.The image must be') . ' JPEG, JPG, PNG, webP.',
@@ -962,7 +967,20 @@ class UserController extends Controller
         }
 
         User::where('id', $userId)->update($updates);
-    
+
+        // Browser tab title — white-label override for the <title> on the
+        // public page. Only touched when the field was actually submitted,
+        // so a form that doesn't carry it can't blank it. Blank clears the
+        // override and falls back to the display name.
+        if ($request->has('tabTitle')) {
+            $tabTitle = trim(strip_tags((string) $request->input('tabTitle')));
+            if ($tabTitle === '') {
+                UserData::removeData($userId, 'tab-title');
+            } else {
+                UserData::saveData($userId, 'tab-title', $tabTitle);
+            }
+        }
+
         if ($request->hasFile('image')) {
 
             // Delete the user's current avatar if it exists

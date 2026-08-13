@@ -202,6 +202,25 @@
     </div>
 
     <div class="form-group col-lg-8">
+        {{-- Browser tab title: sits in the auto-saving basics form, so it
+             persists like the display name. Blank falls back to the
+             display name -- no platform branding either way. --}}
+        @php
+            // getData() returns the string "null" when the user has no data
+            // blob yet, and null when the key is unset -- neither should
+            // reach the input as literal text.
+            $mmTabTitle = UserData::getData(Auth::id(), 'tab-title');
+            $mmTabTitle = is_string($mmTabTitle) && $mmTabTitle !== 'null' ? $mmTabTitle : '';
+        @endphp
+        <label style="margin-top:15px">Browser tab title</label>
+        <div class="input-group">
+            <input type="text" class="form-control" name="tabTitle" maxlength="60"
+                   value="{{ $mmTabTitle }}" placeholder="{{ $page->name }}">
+        </div>
+        <small class="text-muted">The text shown in the browser tab. Leave blank to use your display name.</small>
+    </div>
+
+    <div class="form-group col-lg-8">
         <label>{{__('messages.Page Description')}}</label>
         <textarea class="form-control" name="pageDescription" rows="2" maxlength="250" placeholder="A short tagline shown under your name">{{ strip_tags($page->littlelink_description ?? '') }}</textarea>
         <small id="pageDescription-counter" class="text-muted d-block mt-1">0 / 250 characters</small>
