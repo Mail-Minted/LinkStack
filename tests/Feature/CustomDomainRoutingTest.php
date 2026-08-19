@@ -25,12 +25,19 @@ class CustomDomainRoutingTest extends TestCase
 
     private function makeBioUser(string $domain): User
     {
-        return $this->makeUser([
+        $user = $this->makeUser([
             'name' => 'BioOwner ' . str_replace('.', '-', $domain),
             'littlelink_name' => 'bio-' . str_replace('.', '-', $domain),
             'custom_domain' => $domain,
             'block' => 'no',
         ]);
+
+        // These tests are about host -> page routing, so the page needs
+        // content: an untouched page serves the holding page instead
+        // (covered by ComingSoonPageTest).
+        $this->makeBlock($user);
+
+        return $user;
     }
 
     public function test_trusthosts_patterns_include_custom_domains_and_www(): void

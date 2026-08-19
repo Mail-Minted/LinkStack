@@ -31,6 +31,9 @@ class UserFaviconTest extends TestCase
     private function makeUserWithCleanup(): User
     {
         $user = $this->makeUser();
+        // Favicon assertions read the rendered public page, which needs
+        // real content — see ComingSoonPageTest.
+        $this->makeBlock($user);
         $this->cleanupUserIds[] = $user->id;
         return $user;
     }

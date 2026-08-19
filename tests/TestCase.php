@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use App\Models\Link;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -21,6 +22,27 @@ abstract class TestCase extends BaseTestCase
      * them: unique handle, a theme, no styling overrides. Most feature
      * tests start here.
      */
+    /**
+     * Give a user one block, so their public page renders as a built
+     * page. A page with no blocks and no edit history now serves the
+     * "Coming soon" holding page (UserController@pageIsUntouched), so
+     * any test asserting on real page output needs actual content.
+     */
+    protected function makeBlock(User $user, string $title = 'Test block'): Link
+    {
+        $block = new Link();
+        $block->user_id = $user->id;
+        $block->button_id = 1;
+        $block->type = 'heading';
+        $block->title = $title;
+        $block->link = '';
+        $block->order = 0;
+        $block->type_params = json_encode(['custom_html' => true]);
+        $block->save();
+
+        return $block;
+    }
+
     protected function makeUser(array $overrides = []): User
     {
         static $n = 0;

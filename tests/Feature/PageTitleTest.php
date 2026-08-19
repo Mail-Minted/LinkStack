@@ -16,6 +16,20 @@ class PageTitleTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * A user whose page has content. Every assertion in this file reads
+     * the rendered public page, and a page with no blocks and no edit
+     * history now serves the "Coming soon" holding page instead
+     * (UserController@pageIsUntouched, covered by ComingSoonPageTest).
+     */
+    private function makeUserWithPage(array $overrides = [])
+    {
+        $user = $this->makeUser($overrides);
+        $this->makeBlock($user);
+
+        return $user;
+    }
+
     private function titleOf(string $html): string
     {
         preg_match('/<title>(.*?)<\/title>/s', $html, $m);
@@ -24,7 +38,7 @@ class PageTitleTest extends TestCase
 
     public function test_default_title_is_just_the_display_name(): void
     {
-        $user = $this->makeUser(['name' => 'Respected Path']);
+        $user = $this->makeUserWithPage(['name' => 'Respected Path']);
 
         $html = $this->get('/@' . $user->littlelink_name)->assertSuccessful()->getContent();
 
@@ -33,7 +47,7 @@ class PageTitleTest extends TestCase
 
     public function test_default_title_carries_no_platform_branding(): void
     {
-        $user = $this->makeUser(['name' => 'Respected Path']);
+        $user = $this->makeUserWithPage(['name' => 'Respected Path']);
 
         $html = $this->get('/@' . $user->littlelink_name)->assertSuccessful()->getContent();
         $title = $this->titleOf($html);
@@ -44,7 +58,7 @@ class PageTitleTest extends TestCase
 
     public function test_custom_tab_title_overrides_the_display_name(): void
     {
-        $user = $this->makeUser(['name' => 'Respected Path']);
+        $user = $this->makeUserWithPage(['name' => 'Respected Path']);
 
         $this->actingAs($user)->post('/studio/page', [
             'name'      => 'Respected Path',
@@ -59,7 +73,7 @@ class PageTitleTest extends TestCase
 
     public function test_blank_tab_title_clears_the_override(): void
     {
-        $user = $this->makeUser(['name' => 'Respected Path']);
+        $user = $this->makeUserWithPage(['name' => 'Respected Path']);
         UserData::saveData($user->id, 'tab-title', 'Old Title');
 
         $this->actingAs($user)->post('/studio/page', [
@@ -75,7 +89,7 @@ class PageTitleTest extends TestCase
 
     public function test_tab_title_is_escaped_not_injected(): void
     {
-        $user = $this->makeUser(['name' => 'Respected Path']);
+        $user = $this->makeUserWithPage(['name' => 'Respected Path']);
 
         $this->actingAs($user)->post('/studio/page', [
             'name'     => 'Respected Path',
@@ -90,7 +104,7 @@ class PageTitleTest extends TestCase
 
     public function test_overlong_tab_title_is_rejected(): void
     {
-        $user = $this->makeUser(['name' => 'Respected Path']);
+        $user = $this->makeUserWithPage(['name' => 'Respected Path']);
 
         $this->actingAs($user)->post('/studio/page', [
             'name'     => 'Respected Path',
@@ -100,7 +114,7 @@ class PageTitleTest extends TestCase
 
     public function test_a_form_without_the_field_does_not_clear_it(): void
     {
-        $user = $this->makeUser(['name' => 'Respected Path']);
+        $user = $this->makeUserWithPage(['name' => 'Respected Path']);
         UserData::saveData($user->id, 'tab-title', 'Kept Title');
 
         // Toggle-only submits (share button etc.) post to the same route.
@@ -116,8 +130,8 @@ class PageTitleTest extends TestCase
 
     public function test_tab_title_does_not_leak_between_users(): void
     {
-        $owner = $this->makeUser(['name' => 'Owner Page']);
-        $other = $this->makeUser(['name' => 'Other Page']);
+        $owner = $this->makeUserWithPage(['name' => 'Owner Page']);
+        $other = $this->makeUserWithPage(['name' => 'Other Page']);
         UserData::saveData($owner->id, 'tab-title', 'Owner Custom Title');
 
         $html = $this->get('/@' . $other->littlelink_name)->assertSuccessful()->getContent();

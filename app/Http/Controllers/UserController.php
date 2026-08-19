@@ -125,7 +125,47 @@ class UserController extends Controller
             }
         }
 
+        // A page nobody has ever built renders a holding page instead of
+        // an empty profile. A brand-new Mail Minted domain provisions a
+        // LinkStack user immediately, so without this the customer's
+        // domain goes live showing a blank stranger's profile the moment
+        // DNS resolves — before they have had any chance to set it up.
+        //
+        // Deliberately NOT applied to littlelinkhome() below: that is the
+        // instance's own home page, not a customer surface.
+        if (self::pageIsUntouched($id, $links)) {
+            return view('linkstack.coming-soon', [
+                'pageHost' => strtolower(request()->getHost()),
+            ]);
+        }
+
         return view('linkstack.linkstack', ['userinfo' => $userinfo, 'information' => $information, 'links' => $links, 'littlelink_name' => $littlelink_name]);
+    }
+
+    /**
+     * Has this page never been built?
+     *
+     * "No blocks" alone is the wrong test: a customer who deliberately
+     * empties their page would be bounced back to a holding page they
+     * cannot get rid of. page_versions only gains a row once the editor
+     * has been opened (PageVersions::captureIfDue), so its absence is a
+     * genuine "never touched" signal — the holding page clears itself
+     * the moment the customer engages, with no flag to set at
+     * provisioning and nothing that can drift out of sync.
+     */
+    private static function pageIsUntouched($userId, $links): bool
+    {
+        if ($links->isNotEmpty()) {
+            return false;
+        }
+
+        // Guarded like the custom_domain lookup in routes/home.php: a
+        // fresh install can reach here before the migration has run.
+        if (!Schema::hasTable('page_versions')) {
+            return false;
+        }
+
+        return !DB::table('page_versions')->where('user_id', $userId)->exists();
     }
 
     // Temporary-redirect feature removed — superseded by Mail Minted's
