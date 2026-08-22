@@ -15,22 +15,43 @@ Options -Indexes
     # framework's own directories sit inside the document root. The front
     # controller below only runs for paths that DON'T resolve to a real
     # file, which means Apache serves anything that does exist straight
-    # off disk. Without these denials the following are fetchable over
-    # HTTP by anyone:
+    # off disk — including things the app itself writes there:
     #
     #   storage/framework/sessions/<id>  session payloads, unencrypted,
     #                                    filename == the session id
     #   storage/logs/laravel.log         stack traces, SQL, user emails
     #   backups/env_<timestamp>          verbatim copies of .env
     #
-    # Patterns match relative to this directory, so subdirectory installs
-    # are covered too.
+    # This used to be a deny-list naming those directories, which is
+    # fail-open: anything the list didn't name was public. It missed
+    # blocks/*/display.blade.php (raw Blade source — the contact-form
+    # template names the honeypot field, so serving it tells a spammer
+    # which input to leave blank), docker/entrypoint.sh, theme-toolkit/,
+    # and every root-level file from artisan to composer.lock. An upstream
+    # merge or a new backup routine would have kept adding to that list
+    # silently.
     #
-    # resources/ and vendor/ are deliberately NOT denied: the admin panel
-    # loads resources/ckeditor/ckeditor.js (panel/pages, panel/site) and
-    # vendor/livewire/livewire/dist/livewire.js (panel/users) over HTTP.
-    # assets/ and themes/ are public by design.
-    RewriteRule ^(storage|backups|database|bootstrap|config|routes|app|tests)(/|$) - [F,L]
+    # So it is an allowlist now: if a request resolves to a real file and
+    # isn't named below, it is refused. Only these are ever fetched off
+    # disk —
+    #
+    #   index.php                       front controller
+    #   assets/                         450+ view refs; assets/img is the
+    #                                   symlink to the /data volume
+    #   themes/                         per-page theme css
+    #   resources/ckeditor/             admin: panel/pages, panel/site
+    #   vendor/livewire/livewire/dist/  admin: panel/users
+    #
+    # blocks/ is deliberately absent: block_asset() returns
+    # url("block-asset/$type?asset=$file"), a route that reads the file
+    # with file_get_contents(), so Apache never needs to reach blocks/.
+    #
+    # The -f guard means missing paths still fall through to the front
+    # controller, so routing is untouched. Directories are handled by the
+    # top-level Options -Indexes. The pattern matches relative to this
+    # directory, so subdirectory installs are covered too.
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule !^(index\.php$|assets/|themes/|resources/ckeditor/|vendor/livewire/livewire/dist/) - [F,L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
